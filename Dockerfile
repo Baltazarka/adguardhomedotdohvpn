@@ -9,7 +9,7 @@ FROM adguard/adguardhome:latest AS adguard-source
 FROM alpine:3.23
 
 # Set labels for the image
-LABEL maintainer="adguardhomedotdoh"
+LABEL maintainer="andrianey"
 LABEL description="AdGuard Home with DoH/DoT support (Stubby, Unbound, Cloudflared)"
 
 # 1. Install dependencies
