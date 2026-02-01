@@ -62,7 +62,7 @@ COPY crontab/root /tmp/crontab_root
 RUN cat /tmp/crontab_root >> /var/spool/cron/crontabs/root && rm -f /tmp/crontab_root
 
 # 8. Entrypoint script (Ensure it uses /bin/sh)
-COPY distribution/entrypoint.sh /opt/entrypoint.sh
+COPY entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh && \
     sed -i 's/\r$//' /opt/entrypoint.sh
 
