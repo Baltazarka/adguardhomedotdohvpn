@@ -1,6 +1,6 @@
 # AdGuard Home with DoH/DoT Support
 
-This project provides a custom Docker image for [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) pre-configured with **Unbound** (as a recursive DNS resolver), **Stubby** (for DNS-over-TLS), and **Cloudflared** (for DNS-over-HTTPS).
+This project provides a custom Docker image for [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) pre-configured with **Unbound** (as a recursive DNS resolver) with Valkey in-memory cache (Redis replacement), **Stubby** (for DNS-over-TLS), and **Cloudflared** (for DNS-over-HTTPS).
 
 [GitHub](https://github.com/andrianey/adguardhomedotdoh)
 
@@ -19,7 +19,7 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 
 ## Quick Start (Hardened Images)
 
-The `hardened` and `hardened-wolfi` images use a **Hybrid Setup Mode** unless you bind the existing AdGuardHome configuration.
+The `hardened` and `hardened-wolfi` images use a **Hybrid Setup Mode** unless you bind an existing AdGuardHome configuration.
 
 1.  **First Run**: The container starts as **Root** to allow you to complete the AdGuard Home "Get Started" wizard (which requires root).
 2.  **Setup**: Access `http://localhost:3000` and finish the setup.
@@ -66,13 +66,13 @@ services:
       - /opt/adguardhome/conf:/opt/adguardhome/conf
       - /opt/adguardhome/work:/opt/adguardhome/work
 
-      # Mount custom SSL certificates resolve over public address https://localhost/dns-query
+      # Mount custom SSL certificates to resolve over public address https://localhost/dns-query
       # - /opt/adguardhome/certs:/opt/certs
       
       # Optional: Custom Config Overrides
       # Only mount these if you have custom config files you want to inject
-      # - /opt/adguardhome/stubby/stubby.yml:/etc/stubby/stubby.yml:ro
-      # - /opt/adguardhome/unbound/unbound.conf:/etc/unbound/unbound.conf:ro
+      # - /opt/adguardhome/stubby/stubby.yml:/etc/stubby/stubby.yml
+      # - /opt/adguardhome/unbound/unbound.conf:/etc/unbound/unbound.conf
 
 networks:
   adguard_net:

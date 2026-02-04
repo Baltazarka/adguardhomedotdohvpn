@@ -4,7 +4,39 @@
 FROM adguard/adguardhome:latest AS adguard-source
 
 # ============================================
-# Stage 2: Final image with Alpine 3.23
+# Stage 2: Unbound Builder (Compiled with Redis/Valkey support)
+# ============================================
+FROM alpine:3.23 AS builder_unbound
+
+RUN apk add --no-cache \
+    build-base \
+    libevent-dev \
+    expat-dev \
+    hiredis-dev \
+    openssl-dev \
+    bison \
+    flex \
+    wget \
+    ca-certificates
+
+WORKDIR /tmp/unbound
+RUN wget https://www.nlnetlabs.nl/downloads/unbound/unbound-latest.tar.gz \
+    && tar -xzf unbound-latest.tar.gz \
+    && rm unbound-latest.tar.gz \
+    && cd unbound-* \
+    && ./configure \
+    --prefix=/usr \
+    --sysconfdir=/etc \
+    --localstatedir=/var \
+    --with-libevent \
+    --with-libhiredis \
+    --enable-cachedb \
+    --with-pidfile=/var/run/unbound.pid \
+    && make -j$(nproc) \
+    && make install DESTDIR=/tmp/unbound/install
+
+# ============================================
+# Stage 3: Final image with Alpine 3.23
 # ============================================
 FROM alpine:3.23
 
@@ -13,11 +45,12 @@ LABEL maintainer="andrianey"
 LABEL description="AdGuard Home with DoH/DoT support (Stubby, Unbound, Cloudflared)"
 
 # 1. Install dependencies
-# - Removed: dpkg (replaced with uname), bash (entrypoint uses sh), gettext (unused), explicit libs (apk handles deps)
-# - Added: ca-certificates (for HTTPS), stubby, unbound, tzdata
 RUN apk update && apk add --no-cache \
     stubby \
-    unbound \
+    libevent \
+    hiredis \
+    valkey \
+    expat \
     ca-certificates \
     tzdata \
     && rm -rf /var/cache/apk/*
@@ -29,7 +62,12 @@ COPY --from=adguard-source /opt/adguardhome/AdGuardHome /opt/adguardhome/AdGuard
 RUN mkdir -p /opt/adguardhome/conf /opt/adguardhome/work && \
     chmod 700 /opt/adguardhome/work
 
-# 4. Setup Unbound
+# 4. Setup Unbound (Copy from builder)
+COPY --from=builder_unbound /tmp/unbound/install/usr/sbin/unbound /usr/sbin/unbound
+COPY --from=builder_unbound /tmp/unbound/install/usr/sbin/unbound-anchor /usr/sbin/unbound-anchor
+COPY --from=builder_unbound /tmp/unbound/install/usr/sbin/unbound-control /usr/sbin/unbound-control
+COPY --from=builder_unbound /tmp/unbound/install/usr/sbin/unbound-checkconf /usr/sbin/unbound-checkconf
+
 RUN mkdir -p /var/lib/unbound/ && \
     wget -O /var/lib/unbound/root.hints https://www.internic.net/domain/named.root
 

@@ -5,13 +5,19 @@ set -e
 mkdir -p /opt/adguardhome/work
 chmod 700 /opt/adguardhome/work
 
+# 1. Start Valkey (Redis replacement)
+mkdir -p /var/run/redis
+valkey-server --unixsocket /var/run/redis/redis.sock --unixsocketperm 777 --port 0 --save "" --appendonly no --maxmemory 100mb --maxmemory-policy allkeys-lru --daemonize yes
+sleep 1
+
 # 2. Run crontab service.
 /usr/sbin/crond -L /var/log/cron.log
 
 # 3. Run Unbound
 # Pastikan di unbound.conf kamu port-nya BUKAN 53 (misal 5335)
-/usr/sbin/unbound -p -v -d &
-/usr/sbin/unbound-anchor -4 -r /var/lib/unbound/root.hints -a /var/lib/unbound/root.key
+/usr/sbin/unbound-anchor -4 -r /var/lib/unbound/root.hints -a /var/lib/unbound/root.key || true
+/usr/sbin/unbound -v -d &
+
 
 # 4. Run Cloudflare DNS (Cloudflared)
 /usr/local/bin/cloudflared proxy-dns --port 5053 --upstream https://1.1.1.1/dns-query --upstream https://1.0.0.1/dns-query --upstream https://2606:4700:4700::1111/dns-query --upstream https://2606:4700:4700::1001/dns-query &
