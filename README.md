@@ -89,7 +89,7 @@ The image comes pre-configured with the following services running internally:
 
 | Component | Internal Port | Description |
 | :--- | :--- | :--- |
-| **Unbound** | `127.0.0.1:53` | Recursive resolver with DNSSEC validation. |
+| **Unbound** | `127.0.0.1:5335` | Recursive resolver with DNSSEC validation. |
 | **Stubby** | `127.0.0.1:8053` | DNS-over-TLS resolver. |
 | **Cloudflared** | `127.0.0.1:5053` | DNS-over-HTTPS tunnel. |
 
@@ -101,7 +101,7 @@ When configuring AdGuard Home via the web UI (**Settings -> DNS settings**), use
 1.  **Upstream DNS servers** & **Bootstrap DNS servers**:
     ```
     # Unbound (Recursive + DNSSEC)
-    127.0.0.1:53
+    127.0.0.1:5335
     
     # Cloudflared (DoH)
     127.0.0.1:5053
