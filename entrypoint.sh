@@ -1,31 +1,73 @@
 #!/bin/sh
 set -e
 
+echo "============================================"
+echo "  AdGuardHome DoT/DoH Stack"
+echo "============================================"
+
 # 1. Fix Permissions (Agar warning 0700 di log hilang)
+echo "[1/7] Setting up directories and permissions..."
 mkdir -p /opt/adguardhome/work
 chmod 700 /opt/adguardhome/work
 
-# 1. Start Valkey (Redis replacement)
+# 2. Start Valkey (Redis replacement)
+echo "[2/7] Starting Valkey (Redis compatible)..."
 mkdir -p /var/run/redis
 valkey-server --unixsocket /var/run/redis/redis.sock --unixsocketperm 777 --port 0 --save "" --appendonly no --maxmemory 100mb --maxmemory-policy allkeys-lru --daemonize yes
-sleep 1
+VALKEY_PID=$!
 
-# 2. Run crontab service.
+# Wait for valkey socket to be ready
+echo "       Waiting for Valkey socket..."
+for i in $(seq 1 10); do
+    if [ -S /var/run/redis/redis.sock ]; then
+        echo "       Valkey socket is ready."
+        break
+    fi
+    sleep 1
+done
+
+# 3. Run crontab service
+echo "[3/7] Starting cron service..."
 /usr/sbin/crond -L /var/log/cron.log
 
-# 3. Run Unbound
+# 4. Run Unbound
+echo "[4/7] Starting Unbound DNS resolver..."
 # Pastikan di unbound.conf kamu port-nya BUKAN 53 (misal 5335)
-/usr/sbin/unbound-anchor -4 -r /var/lib/unbound/root.hints -a /var/lib/unbound/root.key || true
-/usr/sbin/unbound -v -d &
+if [ ! -f /var/lib/unbound/root.key ]; then
+    echo "       Initializing DNSSEC root key..."
+    /usr/sbin/unbound-anchor -4 -r /var/lib/unbound/root.hints -a /var/lib/unbound/root.key || true
+fi
+# Run with -vv for verbose output to see Redis/Valkey connection
+echo "       Starting Unbound with cachedb (Valkey backend)..."
+/usr/sbin/unbound -vv -d &
+UNBOUND_PID=$!
+# Wait a bit longer for Unbound to initialize and connect to Valkey
+sleep 2
+echo "       Unbound started (check logs above for Valkey connection)"
 
-
-# 4. Run Cloudflare DNS (Cloudflared)
+# 5. Run Cloudflare DNS (Cloudflared)
+echo "[5/7] Starting Cloudflared DoH proxy..."
 /usr/local/bin/cloudflared proxy-dns --port 5053 --upstream https://1.1.1.1/dns-query --upstream https://1.0.0.1/dns-query --upstream https://2606:4700:4700::1111/dns-query --upstream https://2606:4700:4700::1001/dns-query &
+CLOUDFLARED_PID=$!
+sleep 1
 
-# 5. Run Stubby (Lokasi binary diperbaiki ke /usr/bin/)
+# 6. Run Stubby (Lokasi binary diperbaiki ke /usr/bin/)
+echo "[6/7] Starting Stubby DoT proxy..."
 /usr/bin/stubby -C /etc/stubby/stubby.yml -l &
+STUBBY_PID=$!
+sleep 1
 
-# 6. Run AdGuardHome
+# Show service status
+echo "[6.5/7] Services started:"
+echo "       - Valkey:      Unix socket /var/run/redis/redis.sock"
+echo "       - Unbound:     PID $UNBOUND_PID (port 5335) → connected to Valkey"
+echo "       - Cloudflared: PID $CLOUDFLARED_PID (port 5053)"
+echo "       - Stubby:      PID $STUBBY_PID (port 8053)"
+
+# 7. Run AdGuardHome
+echo "[7/7] Starting AdGuard Home..."
+echo "============================================"
+echo ""
 # Menghapus flag -h 0.0.0.0 karena AdGuard biasanya baca binding dari yaml.
 # Jika tetap ingin dipaksa, pastikan port 53 tidak bentrok dengan Unbound.
 /opt/adguardhome/AdGuardHome --no-check-update -c /opt/adguardhome/conf/AdGuardHome.yaml -w /opt/adguardhome/work
