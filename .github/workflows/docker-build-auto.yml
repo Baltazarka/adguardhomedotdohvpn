@@ -1,12 +1,12 @@
 name: Continuous Build (Auto-Tag)
 
-# on:
-#   push:
-#     branches:
-#       - 'latest'
-#       - 'hardened'
-#       - 'latest-wolfi'
-#       - 'hardened-wolfi'
+on:
+  push:
+    branches:
+      - 'latest'
+      - 'hardened'
+      - 'latest-wolfi'
+      - 'hardened-wolfi'
 
 jobs:
   build:
