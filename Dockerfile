@@ -4,7 +4,49 @@
 FROM adguard/adguardhome:latest AS adguard-source
 
 # ============================================
-# Stage 2: Unbound Builder (Compiled with Redis/Valkey support)
+# Stage 2: Helper stage to download dnsproxy
+# ============================================
+FROM alpine:latest AS builder_helpers
+
+RUN apk update && apk add --no-cache curl jq ca-certificates
+
+# Download dnsproxy
+RUN set -eux; \
+    ARCH="$(uname -m)"; \
+    case "$ARCH" in \
+    aarch64|arm64) \
+    DNSPROXY_ARCH="linux-arm64"; \
+    ;; \
+    armv7l|armhf) \
+    DNSPROXY_ARCH="linux-armv7"; \
+    ;; \
+    x86_64|amd64) \
+    DNSPROXY_ARCH="linux-amd64"; \
+    ;; \
+    *) \
+    echo "Unsupported architecture: $ARCH"; \
+    exit 1; \
+    ;; \
+    esac; \
+    # Fetch latest release URL dynamically
+    DNSPROXY_URL=$(curl -s https://api.github.com/repos/AdguardTeam/dnsproxy/releases/latest | \
+    jq -r ".assets[] | select(.name | contains(\"${DNSPROXY_ARCH}\") and contains(\".tar.gz\")) | .browser_download_url" | head -n 1); \
+    if [ -z "$DNSPROXY_URL" ] || [ "$DNSPROXY_URL" = "null" ]; then \
+    if [ "$DNSPROXY_ARCH" = "linux-armv7" ]; then \
+    DNSPROXY_URL=$(curl -s https://api.github.com/repos/AdguardTeam/dnsproxy/releases/latest | \
+    jq -r ".assets[] | select(.name | contains(\"linux-arm7\") and contains(\".tar.gz\")) | .browser_download_url" | head -n 1); \
+    fi; \
+    fi; \
+    echo "Downloading dnsproxy from: ${DNSPROXY_URL}"; \
+    curl -L -o /tmp/dnsproxy.tar.gz "${DNSPROXY_URL}"; \
+    tar -xzf /tmp/dnsproxy.tar.gz -C /tmp; \
+    # Find binary regardless of directory structure
+    find /tmp -name dnsproxy -type f -exec mv {} /usr/local/bin/dnsproxy \; && \
+    chmod +x /usr/local/bin/dnsproxy
+
+
+# ============================================
+# Stage 3: Unbound Builder (Compiled with Redis/Valkey support)
 # ============================================
 FROM alpine:3.23 AS builder_unbound
 
@@ -36,70 +78,55 @@ RUN wget https://www.nlnetlabs.nl/downloads/unbound/unbound-latest.tar.gz \
     && make install DESTDIR=/tmp/unbound/install
 
 # ============================================
-# Stage 3: Final image with Alpine 3.23
+# Stage 4: Final image with Alpine 3.23
 # ============================================
 FROM alpine:3.23
 
 # Set labels for the image
 LABEL maintainer="andrianey"
-LABEL description="AdGuard Home with DoH/DoT support (Stubby, Unbound, Cloudflared)"
+LABEL description="AdGuard Home with DoH/DoT support (dnsproxy, Unbound)"
 
 # 1. Install dependencies
 RUN apk update && apk add --no-cache \
-    stubby \
     libevent \
     hiredis \
     valkey \
     expat \
     ca-certificates \
     tzdata \
+    bash \
     && rm -rf /var/cache/apk/*
 
 # 2. Copy AdGuard Home binary from the official image
 COPY --from=adguard-source /opt/adguardhome/AdGuardHome /opt/adguardhome/AdGuardHome
 
-# 3. Setup AdGuard Home directories and permissions
+# 3. Copy dnsproxy from helpers
+COPY --from=builder_helpers /usr/local/bin/dnsproxy /usr/local/bin/dnsproxy
+
+# 4. Setup AdGuard Home directories and permissions
 RUN mkdir -p /opt/adguardhome/conf /opt/adguardhome/work && \
     chmod 700 /opt/adguardhome/work
 
-# 4. Setup Unbound (Copy from builder)
+# 5. Setup Unbound (Copy from builder)
 COPY --from=builder_unbound /tmp/unbound/install/usr/sbin/unbound /usr/sbin/unbound
 COPY --from=builder_unbound /tmp/unbound/install/usr/sbin/unbound-anchor /usr/sbin/unbound-anchor
 COPY --from=builder_unbound /tmp/unbound/install/usr/sbin/unbound-control /usr/sbin/unbound-control
 COPY --from=builder_unbound /tmp/unbound/install/usr/sbin/unbound-checkconf /usr/sbin/unbound-checkconf
+COPY --from=builder_unbound /tmp/unbound/install/usr/lib/libunbound.so* /usr/lib/
+# Copy required libs
+COPY --from=builder_unbound /usr/lib/libhiredis.so* /usr/lib/
+COPY --from=builder_unbound /usr/lib/libevent* /usr/lib/
 
 RUN mkdir -p /var/lib/unbound/ && \
     wget -O /var/lib/unbound/root.hints https://www.internic.net/domain/named.root
 
 COPY unbound/unbound.conf /etc/unbound/unbound.conf
 
-# 5. Setup Stubby
-RUN mkdir -p /etc/stubby/
-COPY stubby/stubby.yml /etc/stubby/stubby.yml
-
-# 6. Install Cloudflared (Architecture detection without dpkg)
-RUN set -eux; \
-    # Detect architecture using uname
-    arch="$(uname -m)"; \
-    case "$arch" in \
-    aarch64) CL_ARCH="arm64" ;; \
-    x86_64)  CL_ARCH="amd64" ;; \
-    armv7l)  CL_ARCH="arm" ;; \
-    armhf)   CL_ARCH="arm" ;; \
-    *) echo "Unsupported architecture: $arch"; exit 1 ;; \
-    esac; \
-    echo "Downloading Cloudflared for $CL_ARCH..."; \
-    wget -qO /usr/local/bin/cloudflared "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CL_ARCH}" && \
-    chmod +x /usr/local/bin/cloudflared && \
-    addgroup -S cloudflared && \
-    adduser -S cloudflared -G cloudflared -s /bin/false -D -H && \
-    chown cloudflared:cloudflared /usr/local/bin/cloudflared
-
-# 7. Setup Cron & Permissions
+# 6. Setup Cron & Permissions
 COPY crontab/root /tmp/crontab_root
 RUN cat /tmp/crontab_root >> /var/spool/cron/crontabs/root && rm -f /tmp/crontab_root
 
-# 8. Entrypoint script (Ensure it uses /bin/sh)
+# 7. Entrypoint script (Ensure it uses /bin/sh)
 COPY entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh && \
     sed -i 's/\r$//' /opt/entrypoint.sh

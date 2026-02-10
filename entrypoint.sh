@@ -45,24 +45,25 @@ UNBOUND_PID=$!
 sleep 2
 echo "       Unbound started (check logs above for Valkey connection)"
 
-# 5. Run Cloudflare DNS (Cloudflared)
-echo "[5/7] Starting Cloudflared DoH proxy..."
-/usr/local/bin/cloudflared proxy-dns --port 5053 --upstream https://1.1.1.1/dns-query --upstream https://1.0.0.1/dns-query --upstream https://2606:4700:4700::1111/dns-query --upstream https://2606:4700:4700::1001/dns-query &
-CLOUDFLARED_PID=$!
-sleep 1
-
-# 6. Run Stubby (Lokasi binary diperbaiki ke /usr/bin/)
-echo "[6/7] Starting Stubby DoT proxy..."
-/usr/bin/stubby -C /etc/stubby/stubby.yml -l &
-STUBBY_PID=$!
+# 5. Run dnsproxy (DoH/DoT upstream)
+echo "[5/7] Starting dnsproxy (DoH/DoT upstream)..."
+/usr/local/bin/dnsproxy \
+    -l 127.0.0.1 \
+    -p 8053 \
+    -u tls://1.1.1.1 \
+    -u tls://1.0.0.1 \
+    -u https://1.1.1.1/dns-query \
+    -u https://1.0.0.1/dns-query \
+    --cache-size=0 \
+    --verbose &
+DNSPROXY_PID=$!
 sleep 1
 
 # Show service status
-echo "[6.5/7] Services started:"
+echo "[6/7] Services started:"
 echo "       - Valkey:      Unix socket /var/run/redis/redis.sock"
 echo "       - Unbound:     PID $UNBOUND_PID (port 5335) → connected to Valkey"
-echo "       - Cloudflared: PID $CLOUDFLARED_PID (port 5053)"
-echo "       - Stubby:      PID $STUBBY_PID (port 8053)"
+echo "       - dnsproxy:    PID $DNSPROXY_PID (port 8053)"
 
 # 7. Run AdGuardHome
 echo "[7/7] Starting AdGuard Home..."
