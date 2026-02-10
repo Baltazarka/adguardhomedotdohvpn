@@ -1,0 +1,58 @@
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+  IMAGE_NAME: andrianey/adguardhomedotdoh
+
+stages:
+  - build
+  - promote
+
+# Template Build & Push (Otomatis saat Push)
+build-auto:
+  stage: build
+  image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+  only:
+    - latest
+    - hardened
+    - latest-wolfi
+    - hardened-wolfi
+  script:
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    # Install Buildx
+    - apk add --no-cache curl jq
+    - mkdir -p ~/.docker/cli-plugins
+    - curl -sLo ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.11.2/buildx-v0.11.2.linux-amd64
+    - chmod +x ~/.docker/cli-plugins/docker-buildx
+    - docker buildx create --use
+    # Penentuan Platform berdasarkan branch
+    - |
+      if [[ "$CI_COMMIT_REF_NAME" == *"wolfi"* ]]; then
+        PLATFORMS="linux/amd64,linux/arm64"
+      else
+        PLATFORMS="linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6"
+      fi
+    # Build and Push
+    - docker buildx build --no-cache --push 
+      --platform "$PLATFORMS" 
+      --tag "$IMAGE_NAME:${CI_COMMIT_REF_NAME}-auto" .
+
+# Job Promote (Manual Trigger - Pengganti Workflow Dispatch)
+promote-to-live:
+  stage: promote
+  image: docker:24.0.5
+  services:
+    - name: docker:24.0.5-dind
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "latest" || $CI_COMMIT_REF_NAME == "hardened" || $CI_COMMIT_REF_NAME == "latest-wolfi" || $CI_COMMIT_REF_NAME == "hardened-wolfi"'
+      when: manual  # Membuat tombol "Play" di GitLab UI
+  script:
+    - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+    - apk add --no-cache curl jq
+    # Promote Manifest (Tanpa Build Ulang)
+    - docker buildx imagetools create -t "$IMAGE_NAME:${CI_COMMIT_REF_NAME}" "$IMAGE_NAME:${CI_COMMIT_REF_NAME}-auto"
+    # Delete Auto Tag via API
+    - |
+      TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d "{\"username\": \"$DOCKER_HUB_USERNAME\", \"password\": \"$DOCKER_HUB_PASSWORD\"}" https://hub.docker.com/v2/users/login/ | jq -r .token)
+      curl -i -X DELETE -H "Authorization: JWT ${TOKEN}" https://hub.docker.com/v2/repositories/$IMAGE_NAME/tags/${CI_COMMIT_REF_NAME}-auto
