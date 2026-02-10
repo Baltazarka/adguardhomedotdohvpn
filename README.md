@@ -1,6 +1,6 @@
 # AdGuard Home with DoH/DoT Support
 
-This project provides a custom Docker image for [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) pre-configured with **Unbound** (as a recursive DNS resolver) with Valkey in-memory cache (Redis replacement), **Stubby** (for DNS-over-TLS), and **Cloudflared** (for DNS-over-HTTPS).
+This project provides a custom Docker image for [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) pre-configured with **Unbound** (as a recursive DNS resolver) with Valkey in-memory cache (Redis replacement), and **dnsproxy** (for unified DoH/DoT upstream handling).
 
 [GitHub](https://github.com/andrianey/adguardhomedotdoh)
 
@@ -11,10 +11,10 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 
 | Tag | Base Image | Security Level | Description |
 | :--- | :--- | :--- | :--- |
-| `latest` | Alpine Linux | Standard | Standard image running as root. Lightweight and stable. |
-| `latest-wolfi` | Wolfi OS | Enhanced | Built with [Wolfi](https://github.com/wolfi-dev) for fewer vulnerabilities. |
-| `hardened` | Alpine Linux | **High** | **Non-Root execution**. Runs as `adguard` user with `libcap` capabilities. |
-| `hardened-wolfi` | Wolfi OS | **Maximum** | Wolfi base + Non-Root execution for maximum security hardening. |
+| `latest` | Alpine Linux | Standard | Standard image running as root. Uses `dnsproxy` binary release. |
+| `latest-wolfi` | Wolfi OS | Enhanced | Built with [Wolfi](https://github.com/wolfi-dev). Uses `dnsproxy` binary release. |
+| `hardened` | Alpine Edge | **High** | **Non-Root execution** + **Zero CVE**. Built from source. |
+| `hardened-wolfi` | Wolfi OS | **Maximum** | Wolfi base + Non-Root + **Zero CVE**. Maximum security hardening. |
 
 ---
 
@@ -71,8 +71,6 @@ services:
       # - /opt/adguardhome/certs:/opt/certs
       
       # Optional: Custom Config Overrides
-      # Only mount these if you have custom config files you want to inject
-      # - /opt/adguardhome/stubby/stubby.yml:/etc/stubby/stubby.yml
       # - /opt/adguardhome/unbound/unbound.conf:/etc/unbound/unbound.conf
 
 networks:
@@ -90,30 +88,25 @@ The image comes pre-configured with the following services running internally:
 
 | Component | Internal Port | Description |
 | :--- | :--- | :--- |
-| **Unbound** | `127.0.0.1:5335` | Recursive resolver with DNSSEC validation. |
-| **Stubby** | `127.0.0.1:8053` | DNS-over-TLS resolver. |
-| **Cloudflared** | `127.0.0.1:5053` | DNS-over-HTTPS tunnel. |
+| **Unbound** | `127.0.0.1:5335` | Recursive resolver with DNSSEC validation + Valkey Cache. |
+| **dnsproxy** | `127.0.0.1:8053` | Upstream DoH/DoT proxy (replaces Stubby/Cloudflared). |
 
 ## Configuration
 
 ### AdGuard Home Upstream DNS
-When configuring AdGuard Home via the web UI (**Settings -> DNS settings**), use these Local Upstreams to leverage the embedded services:
+The architecture is designed to chain requests:
+`Client -> AdGuard Home -> Unbound -> Valkey Cache -> dnsproxy -> Cloudflare (DoT/DoH)`
 
-1.  **Upstream DNS servers** & **Bootstrap DNS servers**:
+Configure **Settings -> DNS settings** with:
+
+1.  **Upstream DNS servers**:
     ```
-    # Unbound (Recursive + DNSSEC)
     127.0.0.1:5335
-    
-    # Cloudflared (DoH)
-    127.0.0.1:5053
-    
-    # Stubby (DoT)
-    127.0.0.1:8053
     ```
 
-2.  **Settings**:
-    *   Check **"Parallel requests"** (Query all upstreams simultaneously).
-    *   **Cache size**: `0` (Let Unbound/Stubby handle caching, or set low if preferred).
+2.  **Verify**:
+    *   Click "Test upstreams" to ensure connectivity.
+    *   **Cache size**: You may set this to `0` in AdGuard Home to rely on Unbound's efficient caching, or keep it default.
 
 ---
 
