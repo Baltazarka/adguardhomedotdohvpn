@@ -4,6 +4,7 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 
 [GitHub](https://github.com/andrianey/adguardhomedotdoh)
 
+![Check My DNS](https://raw.githubusercontent.com/andrianey/adguardhomedotdoh/refs/heads/latest/cmdns.jpg)
 ![Cloudflare-Test](https://raw.githubusercontent.com/andrianey/adguardhomedotdoh/7141b52e7e17ed0264a5a639a610ecd97dccc54e/cloudflare-dns.jpg)
 
 ## Available Image Tags
