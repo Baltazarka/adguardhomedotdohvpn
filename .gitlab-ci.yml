@@ -19,7 +19,7 @@ build-auto:
     - latest-wolfi
     - hardened-wolfi
   script:
-    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+    - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
     # Install Buildx
     - apk add --no-cache curl jq
     - mkdir -p ~/.docker/cli-plugins
