@@ -1,5 +1,7 @@
 # AdGuard Home with DoH/DoT Support
 
+### Stubby & Cloudflared are now replaced with dnsproxy
+
 This project provides a custom Docker image for [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) pre-configured with **Unbound** (as a recursive DNS resolver) with Valkey in-memory cache (Redis replacement), and **dnsproxy** (for unified DoH/DoT upstream handling).
 
 [GitHub](https://github.com/andrianey/adguardhomedotdoh)
