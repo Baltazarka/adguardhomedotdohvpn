@@ -47,15 +47,23 @@ echo "       Unbound started (check logs above for Valkey connection)"
 
 # 5. Run dnsproxy (DoH/DoT upstream)
 echo "[5/7] Starting dnsproxy (DoH/DoT upstream)..."
+# Default Upstreams (Cloudflare) if not provided
+DNSPROXY_UPSTREAM=${DNSPROXY_UPSTREAM:-"tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query https://1.0.0.1/dns-query"}
+# Additional Flags
+DNSPROXY_FLAGS=${DNSPROXY_FLAGS:-"--verbose"}
+
+# Build Upstream Arguments
+UPSTREAM_ARGS=""
+for u in $DNSPROXY_UPSTREAM; do
+    UPSTREAM_ARGS="$UPSTREAM_ARGS -u $u"
+done
+
 /usr/local/bin/dnsproxy \
     -l 127.0.0.1 \
     -p 8053 \
-    -u tls://1.1.1.1 \
-    -u tls://1.0.0.1 \
-    -u https://1.1.1.1/dns-query \
-    -u https://1.0.0.1/dns-query \
     --cache-size=0 \
-    --verbose &
+    $UPSTREAM_ARGS \
+    $DNSPROXY_FLAGS &
 DNSPROXY_PID=$!
 sleep 1
 

@@ -46,7 +46,10 @@ services:
       - TZ=Asia/Jakarta # Set your timezone
       - PUID=1000       # User ID for file ownership
       - PGID=1000       # Group ID for file ownership
-    
+      # Optional: Custom DNS Proxy Settings
+      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query # Custom Upstreams
+      # - DNSPROXY_FLAGS=--verbose --cache-optimistic # Custom Flags
+      
     ports:
       # DNS
       - "53:53/tcp"
@@ -80,6 +83,17 @@ networks:
       config:
         - subnet: 172.172.0.0/24
 ```
+
+---
+
+## Environment Variables
+
+You can customize the `dnsproxy` configuration using environment variables in your `docker-compose.yml`:
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `DNSPROXY_UPSTREAM` | Cloudflare DoT/DoH | Space-separated list of upstream servers (e.g., `tls://1.1.1.1 https://1.1.1.1/dns-query`). |
+| `DNSPROXY_FLAGS` | `--verbose` | Additional flags for dnsproxy (e.g., `--cache-optimistic`). |
 
 ---
 

@@ -14,6 +14,9 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Asia/Jakarta # Set your timezone
+      # Optional: Custom DNS Proxy Settings
+      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query # Custom Upstreams
+      # - DNSPROXY_FLAGS=--verbose --cache-optimistic # Custom Flags
 
     ports:
       # DNS (Standard & Encrypted)
@@ -47,7 +50,6 @@ services:
 
       # Optional: Custom Config Overrides
       # Only mount these if you have custom config files you want to inject
-      # - /opt/adguardhome/stubby/stubby.yml:/etc/stubby/stubby.yml:ro
       # - /opt/adguardhome/unbound/unbound.conf:/etc/unbound/unbound.conf:ro
 
 networks:
