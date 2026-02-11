@@ -7,6 +7,13 @@ on:
       - 'hardened'
       - 'latest-wolfi'
       - 'hardened-wolfi'
+    paths-ignore:
+      - 'README.md'
+      - 'LICENSE'
+      - 'docker-compose.yml'
+      - 'SECURITY-MATRIX.md'
+      - '.gemini/**'
+      - '.gitignore'
 
 jobs:
   build:
