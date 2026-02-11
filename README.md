@@ -111,7 +111,7 @@ The image comes pre-configured with the following services running internally:
 
 ### AdGuard Home Upstream DNS
 The architecture is designed to chain requests:
-`Client -> AdGuard Home -> Unbound -> Valkey Cache -> dnsproxy -> Cloudflare (DoT/DoH)`
+`Client -> AdGuard Home -> Unbound -> Valkey Cache -> dnsproxy -> Configured upstreams (DoH, DoT, DoQ and DNSCrypt support)`
 
 Configure **Settings -> DNS settings** with:
 
