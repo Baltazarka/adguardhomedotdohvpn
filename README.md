@@ -50,7 +50,7 @@ services:
       - PGID=1000       # Group ID for file ownership
       # Optional: Custom DNS Proxy Settings
       # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query https://1.0.0.1/dns-query # Custom Upstreams
-      # - DNSPROXY_FLAGS=--verbose --cache-optimistic --upstream-mode=parallel # Custom Flags
+      # - DNSPROXY_FLAGS=--upstream-mode=parallel --cache --cache-optimistic --cache-size=4194304 --cache-min-ttl=600 # Custom Flags
       
     ports:
       # DNS

@@ -1,6 +1,6 @@
 services:
   adguardhome:
-    # Choose your preferred image tag: 'latest' (Alpine) or 'latest-wolfi' (Wolfi)
+    # Choose your preferred tag: 'latest', 'latest-wolfi', 'hardened', or 'hardened-wolfi'
     image: andrianey/adguardhomedotdoh:latest
     container_name: adguardhome
     hostname: adguardhome
@@ -11,46 +11,37 @@ services:
         ipv4_address: 172.172.0.2
 
     environment:
-      - PUID=1000
-      - PGID=1000
       - TZ=Asia/Jakarta # Set your timezone
+      - PUID=1000 # User ID for file ownership
+      - PGID=1000 # Group ID for file ownership
       # Optional: Custom DNS Proxy Settings
-      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query # Custom Upstreams
-      # - DNSPROXY_FLAGS=--verbose --cache-optimistic # Custom Flags
+      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query https://1.0.0.1/dns-query # Custom Upstreams
+      # - DNSPROXY_FLAGS=--upstream-mode=parallel --cache --cache-optimistic --cache-size=4194304 --cache-min-ttl=600 # Custom Flags
 
     ports:
-      # DNS (Standard & Encrypted)
+      # DNS
       - "53:53/tcp"
       - "53:53/udp"
       - "853:853/tcp"
       - "853:853/udp"
-      - "5443:5443/tcp"
-      - "5443:5443/udp"
-
-      # Web Interface & DoH (HTTP/S)
+      # Web & DoH
       - "80:80/tcp"
       - "443:443/tcp"
-      - "443:443/udp" # Required for HTTP/3 (QUIC)
+      - "443:443/udp"
       - "3000:3000/tcp"
-      - "3000:3000/udp"
-
-      # DHCP Server
+      # DHCP
       - "67:67/udp"
       - "68:68/udp"
 
-      # Development/Profiling
-      - "6060:6060/tcp"
-
     volumes:
-      # Core AdGuard Home Data
+      # Core AdGuard Home Data for persistent configuration
       - /opt/adguardhome/conf:/opt/adguardhome/conf
       - /opt/adguardhome/work:/opt/adguardhome/work
-      # Mount custom SSL certificates resolve over public address https://localhost/dns-query
+      # Mount custom SSL certificates to resolve over public address https://localhost/dns-query
       # - /opt/adguardhome/certs:/opt/certs
 
       # Optional: Custom Config Overrides
-      # Only mount these if you have custom config files you want to inject
-      # - /opt/adguardhome/unbound/unbound.conf:/etc/unbound/unbound.conf:ro
+      # - /opt/adguardhome/unbound/unbound.conf:/etc/unbound/unbound.conf
 
 networks:
   adguard_net:
