@@ -49,8 +49,8 @@ services:
       - PUID=1000       # User ID for file ownership
       - PGID=1000       # Group ID for file ownership
       # Optional: Custom DNS Proxy Settings
-      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query # Custom Upstreams
-      # - DNSPROXY_FLAGS=--verbose --cache-optimistic # Custom Flags
+      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query https://1.0.0.1/dns-query # Custom Upstreams
+      # - DNSPROXY_FLAGS=--verbose --cache-optimistic --upstream-mode=parallel # Custom Flags
       
     ports:
       # DNS
