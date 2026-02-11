@@ -1,6 +1,6 @@
 # AdGuard Home with DoH/DoT Support
 
-### Stubby & Cloudflared are now replaced with dnsproxy
+### ℹ️ Since the deprecation of **cloudflared** dns-proxy command [Cloudflare](https://developers.cloudflare.com/changelog/2025-11-11-cloudflared-proxy-dns/) Stubby & Cloudflared are now replaced with dnsproxy ℹ️
 
 This project provides a custom Docker image for [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) pre-configured with **Unbound** (as a recursive DNS resolver) with Valkey in-memory cache (Redis replacement), and **dnsproxy** (for unified DoH/DoT upstream handling).
 
@@ -49,8 +49,8 @@ services:
       - PUID=1000       # User ID for file ownership
       - PGID=1000       # Group ID for file ownership
       # Optional: Custom DNS Proxy Settings
-      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query https://1.0.0.1/dns-query # Custom Upstreams
-      # - DNSPROXY_FLAGS=--upstream-mode=parallel --cache --cache-optimistic --cache-size=4194304 --cache-min-ttl=600 # Custom Flags
+      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query # Custom Upstreams
+      # - DNSPROXY_FLAGS=--verbose --cache-optimistic # Custom Flags
       
     ports:
       # DNS
