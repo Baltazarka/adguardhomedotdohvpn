@@ -1,6 +1,6 @@
 # AdGuard Home with DoH/DoT Support
 
-### ℹ️ Since the deprecation of **cloudflared** dns-proxy command [Cloudflare](https://developers.cloudflare.com/changelog/2025-11-11-cloudflared-proxy-dns/) Stubby & Cloudflared are now replaced with dnsproxy ℹ️
+### ℹ️ Since the deprecation of [cloudflared](https://developers.cloudflare.com/changelog/2025-11-11-cloudflared-proxy-dns/) dns-proxy command, Stubby & Cloudflared are now replaced with dnsproxy ℹ️
 
 This project provides a custom Docker image for [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) pre-configured with **Unbound** (as a recursive DNS resolver) with Valkey in-memory cache (Redis replacement), and **dnsproxy** (for unified DoH/DoT upstream handling).
 
@@ -49,8 +49,8 @@ services:
       - PUID=1000       # User ID for file ownership
       - PGID=1000       # Group ID for file ownership
       # Optional: Custom DNS Proxy Settings
-      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query # Custom Upstreams
-      # - DNSPROXY_FLAGS=--verbose --cache-optimistic # Custom Flags
+      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query https://1.0.0.1/dns-query tls://[2606:4700:4700::1111] tls://[2606:4700:4700::1001] https://[2606:4700:4700::1111]/dns-query https://[2606:4700:4700::1001]/dns-query tls://9.9.9.9 tls://149.112.112.112 tls://[2620:fe::fe] tls://[2620:fe::9] https://dns9.quad9.net/dns-query
+      # - DNSPROXY_FLAGS=--upstream-mode=parallel --cache --cache-optimistic --cache-size=4194304 --cache-min-ttl=600
       
     ports:
       # DNS
@@ -111,7 +111,7 @@ The image comes pre-configured with the following services running internally:
 
 ### AdGuard Home Upstream DNS
 The architecture is designed to chain requests:
-`Client -> AdGuard Home -> Unbound -> Valkey Cache -> dnsproxy -> Cloudflare (DoT/DoH)`
+`Client -> AdGuard Home -> Unbound -> Valkey Cache -> dnsproxy -> Configured upstreams (DoH, DoT, DoQ and DNSCrypt support)`
 
 Configure **Settings -> DNS settings** with:
 
