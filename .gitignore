@@ -3,3 +3,4 @@ scripts/
 
 # Ignore IDE files
 .idea/
+SECURITY-MATRIX.md
