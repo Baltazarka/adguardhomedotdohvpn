@@ -7,52 +7,63 @@ stages:
   - build
   - promote
 
-# Template Build & Push (Otomatis saat Push)
+# Template Build & Push (Automatic on Push)
 build-auto:
   stage: build
   image: docker:24.0.5
   services:
     - name: docker:24.0.5-dind
-  only:
-    - latest
-    - hardened
-    - latest-wolfi
-    - hardened-wolfi
-  script:
+      alias: docker
+      command: ["--tls=false"]
+  tags:
+    - oracle
+  rules:
+    - if: '$CI_COMMIT_REF_NAME =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/'
+  before_script:
+    - apk add --no-cache curl jq
     - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
     # Install Buildx
-    - apk add --no-cache curl jq
     - mkdir -p ~/.docker/cli-plugins
     - curl -sLo ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.11.2/buildx-v0.11.2.linux-amd64
     - chmod +x ~/.docker/cli-plugins/docker-buildx
-    - docker buildx create --use
-    # Penentuan Platform berdasarkan branch
+    # Register QEMU for multi-arch builds
+    - docker run --privileged --rm tonistiigi/binfmt --install all
+    - docker buildx create --use --name mybuilder
+  script:
     - |
       if [[ "$CI_COMMIT_REF_NAME" == *"wolfi"* ]]; then
         PLATFORMS="linux/amd64,linux/arm64"
       else
         PLATFORMS="linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6"
       fi
-    # Build and Push
-    - docker buildx build --no-cache --push 
-      --platform "$PLATFORMS" 
-      --tag "$IMAGE_NAME:${CI_COMMIT_REF_NAME}-auto" .
+      echo "Building for platforms: $PLATFORMS"
+      docker buildx build --no-cache --push \
+        --platform "$PLATFORMS" \
+        --tag "$IMAGE_NAME:${CI_COMMIT_REF_NAME}-auto" .
 
-# Job Promote (Manual Trigger - Pengganti Workflow Dispatch)
+# Job Promote (Manual Trigger - Replaces Workflow Dispatch)
 promote-to-live:
   stage: promote
   image: docker:24.0.5
   services:
     - name: docker:24.0.5-dind
+      alias: docker
+      command: ["--tls=false"]
+  tags:
+    - oracle
   rules:
-    - if: '$CI_COMMIT_REF_NAME == "latest" || $CI_COMMIT_REF_NAME == "hardened" || $CI_COMMIT_REF_NAME == "latest-wolfi" || $CI_COMMIT_REF_NAME == "hardened-wolfi"'
-      when: manual  # Membuat tombol "Play" di GitLab UI
-  script:
-    - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+    - if: '$CI_COMMIT_REF_NAME =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/'
+      when: manual
+  before_script:
     - apk add --no-cache curl jq
-    # Promote Manifest (Tanpa Build Ulang)
+    - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+    - mkdir -p ~/.docker/cli-plugins
+    - curl -sLo ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.11.2/buildx-v0.11.2.linux-amd64
+    - chmod +x ~/.docker/cli-plugins/docker-buildx
+  script:
+    # Promote Manifest (No Rebuild)
     - docker buildx imagetools create -t "$IMAGE_NAME:${CI_COMMIT_REF_NAME}" "$IMAGE_NAME:${CI_COMMIT_REF_NAME}-auto"
     # Delete Auto Tag via API
     - |
       TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d "{\"username\": \"$DOCKER_HUB_USERNAME\", \"password\": \"$DOCKER_HUB_PASSWORD\"}" https://hub.docker.com/v2/users/login/ | jq -r .token)
-      curl -i -X DELETE -H "Authorization: JWT ${TOKEN}" https://hub.docker.com/v2/repositories/$IMAGE_NAME/tags/${CI_COMMIT_REF_NAME}-auto
+      curl -i -X DELETE -H "Authorization: JWT ${TOKEN}" "https://hub.docker.com/v2/repositories/${IMAGE_NAME}/tags/${CI_COMMIT_REF_NAME}-auto"
