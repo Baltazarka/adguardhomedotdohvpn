@@ -22,13 +22,15 @@ build-auto:
   before_script:
     - apk add --no-cache curl jq
     - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
-    # Install Buildx
+    # Install Buildx manually (ensure specific version)
     - mkdir -p ~/.docker/cli-plugins
     - curl -sLo ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.11.2/buildx-v0.11.2.linux-amd64
     - chmod +x ~/.docker/cli-plugins/docker-buildx
+    - docker buildx version
     # Register QEMU for multi-arch builds
     - docker run --privileged --rm tonistiigi/binfmt --install all
-    - docker buildx create --use --name mybuilder
+    - docker buildx create --name mybuilder --driver docker-container --bootstrap
+    - docker buildx use mybuilder
   script:
     - |
       if [[ "$CI_COMMIT_REF_NAME" == *"wolfi"* ]]; then
