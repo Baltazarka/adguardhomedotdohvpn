@@ -1,71 +1,97 @@
-variables:
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: ""
-  IMAGE_NAME: andrianey/adguardhomedotdoh
+# AdGuardHome Docker Image CI/CD
+# - Auto-build triggers on push to tracked branches
+# - Promote to live is manual (run via GitLab UI → Run pipeline)
 
 stages:
   - build
   - promote
 
-# Template Build & Push (Automatic on Push)
-build-auto:
+variables:
+  IMAGE_NAME: andrianey/adguardhomedotdoh
+
+# ─── JOB 1: Continuous Build (Auto-Tag) ───────────────────────────────────────
+
+build-auto-tag:
   stage: build
-  image: docker:24.0.5
-  services:
-    - name: docker:24.0.5-dind
-      alias: docker
-      command: ["--tls=false"]
   tags:
     - oracle
-  rules:
-    - if: '$CI_COMMIT_REF_NAME =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/'
+  image: docker:24
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: "/certs"
   before_script:
     - apk add --no-cache curl jq
-    - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
-    # Install Buildx manually (ensure specific version)
-    - mkdir -p ~/.docker/cli-plugins
-    - curl -sLo ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.11.2/buildx-v0.11.2.linux-amd64
-    - chmod +x ~/.docker/cli-plugins/docker-buildx
-    - docker buildx version
-    # Register QEMU for multi-arch builds
-    - docker run --privileged --rm tonistiigi/binfmt --install all
-    - docker buildx create --name mybuilder --driver docker-container --bootstrap
-    - docker buildx use mybuilder
+    - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
+    - docker buildx create --use --name multiarch-builder
+    - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
   script:
     - |
-      if [[ "$CI_COMMIT_REF_NAME" == *"wolfi"* ]]; then
+      if echo "$CI_COMMIT_BRANCH" | grep -q "wolfi"; then
         PLATFORMS="linux/amd64,linux/arm64"
       else
         PLATFORMS="linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6"
       fi
-      echo "Building for platforms: $PLATFORMS"
-      docker buildx build --no-cache --push \
+      docker buildx build \
         --platform "$PLATFORMS" \
-        --tag "$IMAGE_NAME:${CI_COMMIT_REF_NAME}-auto" .
+        --push \
+        --no-cache \
+        -t "$IMAGE_NAME:${CI_COMMIT_BRANCH}-auto" \
+        .
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/ && $CI_PIPELINE_SOURCE == "push"'
+      changes:
+        - "{*,**/*}"
+        ignore:
+          - README.md
+          - LICENSE
+          - docker-compose.yml
+          - SECURITY-MATRIX.md
+          - .gemini/**
+          - .gitignore
+    - when: never
 
-# Job Promote (Manual Trigger - Replaces Workflow Dispatch)
+# ─── JOB 2: Promote to Live (Manual) ─────────────────────────────────────────
+
 promote-to-live:
   stage: promote
-  image: docker:24.0.5
-  services:
-    - name: docker:24.0.5-dind
-      alias: docker
-      command: ["--tls=false"]
   tags:
     - oracle
-  rules:
-    - if: '$CI_COMMIT_REF_NAME =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/'
-      when: manual
+  image: docker:24
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: "/certs"
+    TARGET_BRANCH:
+      value: "latest"
+      description: "Branch/tag to promote (latest, latest-wolfi, hardened, hardened-wolfi)"
+      options:
+        - latest
+        - latest-wolfi
+        - hardened
+        - hardened-wolfi
   before_script:
     - apk add --no-cache curl jq
-    - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
-    - mkdir -p ~/.docker/cli-plugins
-    - curl -sLo ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.11.2/buildx-v0.11.2.linux-amd64
-    - chmod +x ~/.docker/cli-plugins/docker-buildx
+    - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
+    - docker buildx create --use --name multiarch-builder
   script:
-    # Promote Manifest (No Rebuild)
-    - docker buildx imagetools create -t "$IMAGE_NAME:${CI_COMMIT_REF_NAME}" "$IMAGE_NAME:${CI_COMMIT_REF_NAME}-auto"
-    # Delete Auto Tag via API
     - |
-      TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d "{\"username\": \"$DOCKER_HUB_USERNAME\", \"password\": \"$DOCKER_HUB_PASSWORD\"}" https://hub.docker.com/v2/users/login/ | jq -r .token)
-      curl -i -X DELETE -H "Authorization: JWT ${TOKEN}" "https://hub.docker.com/v2/repositories/${IMAGE_NAME}/tags/${CI_COMMIT_REF_NAME}-auto"
+      docker buildx imagetools create \
+        -t "$IMAGE_NAME:${TARGET_BRANCH}" \
+        "$IMAGE_NAME:${TARGET_BRANCH}-auto"
+    - |
+      TOKEN=$(curl -s \
+        -H "Content-Type: application/json" \
+        -X POST \
+        -d "{\"username\": \"${DOCKERHUB_USERNAME}\", \"password\": \"${DOCKERHUB_TOKEN}\"}" \
+        https://hub.docker.com/v2/users/login/ | jq -r .token)
+
+      curl -i -X DELETE \
+        -H "Authorization: JWT ${TOKEN}" \
+        "https://hub.docker.com/v2/repositories/andrianey/adguardhomedotdoh/tags/${TARGET_BRANCH}-auto"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: manual
+    - when: never
