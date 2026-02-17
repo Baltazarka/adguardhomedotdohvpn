@@ -8,6 +8,14 @@ stages:
 
 variables:
   IMAGE_NAME: andrianey/adguardhomedotdoh
+  TARGET_BRANCH:
+    value: "latest"
+    description: "Branch/tag to promote (latest, latest-wolfi, hardened, hardened-wolfi)"
+    options:
+      - latest
+      - latest-wolfi
+      - hardened
+      - hardened-wolfi
 
 # ─── JOB 1: Continuous Build (Auto-Tag) ───────────────────────────────────────
 
@@ -39,18 +47,6 @@ build-auto-tag:
         --no-cache \
         -t "$IMAGE_NAME:${CI_COMMIT_BRANCH}-auto" \
         .
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/ && $CI_PIPELINE_SOURCE == "push"'
-      changes:
-        - "{*,**/*}"
-        ignore:
-          - README.md
-          - LICENSE
-          - docker-compose.yml
-          - SECURITY-MATRIX.md
-          - .gemini/**
-          - .gitignore
-    - when: never
 
 # ─── JOB 2: Promote to Live (Manual) ─────────────────────────────────────────
 
@@ -64,14 +60,6 @@ promote-to-live:
   variables:
     DOCKER_DRIVER: overlay2
     DOCKER_TLS_CERTDIR: "/certs"
-    TARGET_BRANCH:
-      value: "latest"
-      description: "Branch/tag to promote (latest, latest-wolfi, hardened, hardened-wolfi)"
-      options:
-        - latest
-        - latest-wolfi
-        - hardened
-        - hardened-wolfi
   before_script:
     - apk add --no-cache curl jq
     - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
