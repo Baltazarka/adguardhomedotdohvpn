@@ -1,5 +1,6 @@
 stages:
   - build
+  - manifest
   - promote
 
 variables:
@@ -8,6 +9,15 @@ variables:
   DOCKER_HOST: "tcp://docker:2375"
   IMAGE_NAME: andrianey/adguardhomedotdoh
   DOCKER_BUILDKIT: "1"
+  # MOVED TO GLOBAL LEVEL: This makes it show up in the "Run Pipeline" UI
+  TARGET_BRANCH:
+    value: "latest"
+    options:
+      - "latest"
+      - "latest-wolfi"
+      - "hardened"
+      - "hardened-wolfi"
+    description: "Branch to promote (latest, latest-wolfi, hardened, hardened-wolfi)"
 
 .docker_setup: &docker_setup
   tags:
@@ -26,15 +36,11 @@ build_auto:
   stage: build
   script:
     - |
-      # Replicate your GitHub "contains('wolfi')" logic
       if [[ "$CI_COMMIT_BRANCH" == *"wolfi"* ]]; then
         PLATFORMS="linux/amd64,linux/arm64"
       else
         PLATFORMS="linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6"
       fi
-      
-      echo "Building for platforms: $PLATFORMS"
-      
       docker buildx build \
         --platform "$PLATFORMS" \
         --provenance=false \
@@ -52,23 +58,16 @@ build_auto:
         - "!.gemini/**"
         - "!.gitignore"
 
-# Manual Promotion (Promote to Live)
+# Manual Promotion
 promote_live:
   <<: *docker_setup
   stage: promote
-  variables:
-    # This allows you to choose which branch to promote when running manually
-    TARGET_BRANCH:
-      value: "latest"
-      description: "Branch to promote (latest, latest-wolfi, hardened, hardened-wolfi)"
   script:
     - |
-      # 1. Promote to Live Tag
       docker buildx imagetools create \
         -t $IMAGE_NAME:${TARGET_BRANCH} \
         $IMAGE_NAME:${TARGET_BRANCH}-auto
     - |
-      # 2. Get JWT Token and Delete Auto Tag
       TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d "{\"username\": \"${DOCKER_HUB_USERNAME}\", \"password\": \"${DOCKER_HUB_PASSWORD}\"}" https://hub.docker.com/v2/users/login/ | jq -r .token)
       curl -i -X DELETE -H "Authorization: JWT ${TOKEN}" "https://hub.docker.com/v2/repositories/${IMAGE_NAME}/tags/${TARGET_BRANCH}-auto"
   rules:
