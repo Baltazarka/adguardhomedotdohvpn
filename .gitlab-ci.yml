@@ -1,6 +1,6 @@
 stages:
   - build
-  - deploy
+  - manifest
   - promote
 
 variables:
@@ -9,13 +9,12 @@ variables:
   DOCKER_HOST: "tcp://docker:2375"
   IMAGE_NAME: andrianey/rama-wedding
   DOCKER_BUILDKIT: "1"
-  PRISMA_CLI_BINARY_TARGETS: "native,linux-musl-openssl-3.0.x,linux-musl-arm64-openssl-3.0.x"
+  # Target tag for promotion
   TARGET_TAG:
     value: "latest"
-    description: "Tag to promote the staging build to (usually latest)"
+    description: "Tag to promote the staging build to"
 
-build:
-  stage: build
+.docker_setup: &docker_setup
   tags:
     - oracle
   image: docker:24-cli
@@ -25,47 +24,63 @@ build:
     - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
     - docker run --privileged --rm tonistiigi/binfmt --install all
     - docker buildx create --use --name mybuilder
+
+# Build ARM64 (Native - Very Fast)
+build_arm64:
+  <<: *docker_setup
+  stage: build
   script:
     - |
       docker buildx build \
-        --platform linux/arm64,linux/amd64 \
+        --platform linux/arm64 \
+        --build-arg NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dsfz9c2hm \
+        --build-arg NEXT_PUBLIC_USE_CLOUDINARY=true \
+        -t $IMAGE_NAME:staging-arm64 \
+        --push .
+
+# Build AMD64 (Emulated - Slower, but isolated)
+build_amd64:
+  <<: *docker_setup
+  stage: build
+  script:
+    - |
+      docker buildx build \
+        --platform linux/amd64 \
         --build-arg NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dsfz9c2hm \
         --build-arg NEXT_PUBLIC_USE_CLOUDINARY=true \
         --provenance=false \
-        --cache-from type=registry,ref=$IMAGE_NAME:cache \
-        --cache-to type=registry,ref=$IMAGE_NAME:cache,mode=max \
-        -t $IMAGE_NAME:staging \
-        -t $IMAGE_NAME:$CI_COMMIT_SHORT_SHA \
+        -t $IMAGE_NAME:staging-amd64 \
         --push .
-  only:
-    - main
-    - master
 
+# Combine into a single Multi-Arch Staging Manifest
+create_manifest:
+  <<: *docker_setup
+  stage: manifest
+  script:
+    - |
+      docker buildx imagetools create \
+        -t $IMAGE_NAME:staging \
+        $IMAGE_NAME:staging-arm64 \
+        $IMAGE_NAME:staging-amd64
+  needs:
+    - build_arm64
+    - build_amd64
+
+# Manual Trigger to promote staging -> latest
 promote:
+  <<: *docker_setup
   stage: promote
-  tags:
-    - oracle
-  image: docker:24-cli
-  services:
-    - name: docker:24-dind
-  before_script:
-    - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
-    - docker buildx create --use --name mybuilder
   script:
     - |
       docker buildx imagetools create \
         -t $IMAGE_NAME:$TARGET_TAG \
         $IMAGE_NAME:staging
     - |
-      TOKEN=$(curl -s \
-        -H "Content-Type: application/json" \
-        -X POST \
-        -d "{\"username\": \"${DOCKER_HUB_USERNAME}\", \"password\": \"${DOCKER_HUB_PASSWORD}\"}" \
-        https://hub.docker.com/v2/users/login/ | jq -r .token)
-      curl -i -X DELETE \
-        -H "Authorization: JWT ${TOKEN}" \
-        "https://hub.docker.com/v2/repositories/andrianey/rama-wedding/tags/staging"
+      # Cleanup staging tags (Optional)
+      TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d "{\"username\": \"${DOCKER_HUB_USERNAME}\", \"password\": \"${DOCKER_HUB_PASSWORD}\"}" https://hub.docker.com/v2/users/login/ | jq -r .token)
+      for tag in staging staging-arm64 staging-amd64; do
+        curl -i -X DELETE -H "Authorization: JWT ${TOKEN}" "https://hub.docker.com/v2/repositories/${IMAGE_NAME}/tags/${tag}"
+      done
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "master"'
       when: manual
-    - when: never
