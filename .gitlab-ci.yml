@@ -14,8 +14,6 @@ variables:
     value: "latest"
     description: "Tag to promote the staging build to (usually latest)"
 
-# ─── JOB 1: Build & Push (Tagged as -staging) ────────────────────────────────
-
 build:
   stage: build
   tags:
