@@ -122,7 +122,7 @@ Configure **Settings -> DNS settings** with:
 
 2.  **Verify**:
     *   Click "Test upstreams" to ensure connectivity.
-    *   **Cache size**: You may set this to `0` in AdGuard Home to rely on Unbound's efficient caching, or keep it default.
+    *   **Cache size**: You may set this to `0` in AdGuard Home to rely on Unbound's efficient caching paired with Valkey.
 
 ---
 
