@@ -1,96 +1,72 @@
-# AdGuardHome Docker Image CI/CD
-# - Auto-build triggers on push to tracked branches
-# - Promote to live is manual (run via GitLab UI → Run pipeline)
-
 stages:
   - build
+  - deploy
   - promote
 
 variables:
-  IMAGE_NAME: andrianey/adguardhomedotdoh
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_HOST: "tcp://docker:2375"
+  IMAGE_NAME: andrianey/rama-wedding
+  DOCKER_BUILDKIT: "1"
+  PRISMA_CLI_BINARY_TARGETS: "native,linux-musl-openssl-3.0.x,linux-musl-arm64-openssl-3.0.x"
+  TARGET_TAG:
+    value: "latest"
+    description: "Tag to promote the staging build to (usually latest)"
 
-# ─── JOB 1: Continuous Build (Auto-Tag) ───────────────────────────────────────
+# ─── JOB 1: Build & Push (Tagged as -staging) ────────────────────────────────
 
-build-auto-tag:
+build:
   stage: build
   tags:
     - oracle
-  image: docker:24
+  image: docker:24-cli
   services:
-    - docker:24-dind
-  variables:
-    DOCKER_DRIVER: overlay2
-    DOCKER_TLS_CERTDIR: "/certs"
+    - name: docker:24-dind
   before_script:
-    - apk add --no-cache curl jq
-    - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
-    - docker buildx create --use --name multiarch-builder
-    - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+    - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+    - docker run --privileged --rm tonistiigi/binfmt --install all
+    - docker buildx create --use --name mybuilder
   script:
     - |
-      if echo "$CI_COMMIT_BRANCH" | grep -q "wolfi"; then
-        PLATFORMS="linux/amd64,linux/arm64"
-      else
-        PLATFORMS="linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6"
-      fi
       docker buildx build \
-        --platform "$PLATFORMS" \
-        --push \
-        --no-cache \
-        -t "$IMAGE_NAME:${CI_COMMIT_BRANCH}-auto" \
-        .
-  rules:
-    - if: '$CI_COMMIT_BRANCH =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/ && $CI_PIPELINE_SOURCE == "push"'
-      changes:
-        - "{*,**/*}"
-        ignore:
-          - README.md
-          - LICENSE
-          - docker-compose.yml
-          - SECURITY-MATRIX.md
-          - .gemini/**
-          - .gitignore
-    - when: never
+        --platform linux/arm64,linux/amd64 \
+        --build-arg NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dsfz9c2hm \
+        --build-arg NEXT_PUBLIC_USE_CLOUDINARY=true \
+        --provenance=false \
+        --cache-from type=registry,ref=$IMAGE_NAME:cache \
+        --cache-to type=registry,ref=$IMAGE_NAME:cache,mode=max \
+        -t $IMAGE_NAME:staging \
+        -t $IMAGE_NAME:$CI_COMMIT_SHORT_SHA \
+        --push .
+  only:
+    - main
+    - master
 
-# ─── JOB 2: Promote to Live (Manual) ─────────────────────────────────────────
-
-promote-to-live:
+promote:
   stage: promote
   tags:
     - oracle
-  image: docker:24
+  image: docker:24-cli
   services:
-    - docker:24-dind
-  variables:
-    DOCKER_DRIVER: overlay2
-    DOCKER_TLS_CERTDIR: "/certs"
-    TARGET_BRANCH:
-      value: "latest"
-      description: "Branch/tag to promote (latest, latest-wolfi, hardened, hardened-wolfi)"
-      options:
-        - latest
-        - latest-wolfi
-        - hardened
-        - hardened-wolfi
+    - name: docker:24-dind
   before_script:
-    - apk add --no-cache curl jq
-    - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
-    - docker buildx create --use --name multiarch-builder
+    - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+    - docker buildx create --use --name mybuilder
   script:
     - |
       docker buildx imagetools create \
-        -t "$IMAGE_NAME:${TARGET_BRANCH}" \
-        "$IMAGE_NAME:${TARGET_BRANCH}-auto"
+        -t $IMAGE_NAME:$TARGET_TAG \
+        $IMAGE_NAME:staging
     - |
       TOKEN=$(curl -s \
         -H "Content-Type: application/json" \
         -X POST \
-        -d "{\"username\": \"${DOCKERHUB_USERNAME}\", \"password\": \"${DOCKERHUB_TOKEN}\"}" \
+        -d "{\"username\": \"${DOCKER_HUB_USERNAME}\", \"password\": \"${DOCKER_HUB_PASSWORD}\"}" \
         https://hub.docker.com/v2/users/login/ | jq -r .token)
-
       curl -i -X DELETE \
         -H "Authorization: JWT ${TOKEN}" \
-        "https://hub.docker.com/v2/repositories/andrianey/adguardhomedotdoh/tags/${TARGET_BRANCH}-auto"
+        "https://hub.docker.com/v2/repositories/andrianey/rama-wedding/tags/staging"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "web"'
       when: manual
