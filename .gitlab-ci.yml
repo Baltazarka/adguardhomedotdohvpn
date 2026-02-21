@@ -1,6 +1,7 @@
 stages:
   - build
   - manifest
+  - badge
   - promote
 
 variables:
@@ -30,25 +31,93 @@ variables:
     - docker run --privileged --rm tonistiigi/binfmt --install all
     - docker buildx create --use --name dns-builder
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage: build
+# Builds the image, extracts component versions, saves to versions.env artifact
+# ─────────────────────────────────────────────────────────────────────────────
 build_auto:
   <<: *docker_setup
   stage: build
   script:
     - |
+      # ── Platform ──────────────────────────────────────────────────────────
       if [[ "$CI_COMMIT_BRANCH" == *"wolfi"* ]]; then
         PLATFORMS="linux/amd64,linux/arm64"
       else
         PLATFORMS="linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6"
       fi
+
+      # ── Build type for README badge ────────────────────────────────────────
+      case "$CI_COMMIT_BRANCH" in
+        hardened|hardened-wolfi) BUILD_TYPE="🔨 src" ;;
+        *) BUILD_TYPE="📦 pkg" ;;
+      esac
+
+      # ── Build amd64 locally for version inspection ─────────────────────────
+      echo "==> Building amd64 image for version inspection..."
+      docker buildx build \
+        --platform linux/amd64 \
+        --provenance=false \
+        --no-cache \
+        --load \
+        -t inspect-image .
+
+      # ── Extract versions from running binaries ─────────────────────────────
+      echo "==> Extracting component versions from built image..."
+
+      AGH_VER=$(docker run --rm --entrypoint=/opt/adguardhome/AdGuardHome \
+        inspect-image --version 2>&1 \
+        | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' | head -1 || echo "edge")
+
+      DNSPROXY_VER=$(docker run --rm --entrypoint=cat \
+        inspect-image /tmp/dnsproxy_version 2>/dev/null | tr -d '\n\r ' \
+        || docker run --rm --entrypoint=/usr/local/bin/dnsproxy \
+          inspect-image --version 2>&1 \
+          | grep -oE 'v[0-9]+\.[0-9]+[^ ]*' | head -1 \
+        || echo "n/a")
+
+      UNBOUND_VER=$(docker run --rm --entrypoint=cat \
+        inspect-image /tmp/unbound_version 2>/dev/null | tr -d '\n\r ' \
+        || docker run --rm -e LD_LIBRARY_PATH=/usr/local/lib:/usr/lib \
+          --entrypoint=/usr/sbin/unbound inspect-image \
+          -V 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 \
+        || echo "n/a")
+
+      docker rmi inspect-image 2>/dev/null || true
+
+      BUILD_DATE=$(date -u +"%Y-%m-%d %H:%MZ")
+
+      printf "AGH_VER=%s\nUNBOUND_VER=%s\nDNSPROXY_VER=%s\nBUILD_TYPE=%s\nBUILD_DATE=%s\n" \
+        "$AGH_VER" "$UNBOUND_VER" "$DNSPROXY_VER" "$BUILD_TYPE" "$BUILD_DATE" \
+        > versions.env
+
+      echo ""
+      echo "==> ┌─ Versions: ${CI_COMMIT_BRANCH} ─────────────────────────────"
+      echo "    │  AdGuardHome : ${AGH_VER}"
+      echo "    │  Unbound     : ${UNBOUND_VER}"
+      echo "    │  dnsproxy    : ${DNSPROXY_VER}"
+      echo "    │  Build type  : ${BUILD_TYPE}"
+      echo "    │  Build date  : ${BUILD_DATE}"
+      echo "    └────────────────────────────────────────────────────────────"
+
+      # ── Push multi-platform image ──────────────────────────────────────────
+      echo "==> Pushing multi-platform image..."
       docker buildx build \
         --platform "$PLATFORMS" \
         --provenance=false \
         --no-cache \
         -t $IMAGE_NAME:${CI_COMMIT_BRANCH}-auto \
         --push .
+  artifacts:
+    reports:
+      dotenv: versions.env   # ← injects AGH_VER, UNBOUND_VER, etc. into badge job
+    expire_in: 1 hour
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/'
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage: manifest  (verify the pushed manifest)
+# ─────────────────────────────────────────────────────────────────────────────
 create_manifest:
   <<: *docker_setup
   stage: manifest
@@ -59,6 +128,124 @@ create_manifest:
     - if: '$CI_COMMIT_BRANCH =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/'
   needs: ["build_auto"]
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage: badge
+# Updates the README.md on the `latest` branch with version badges.
+# ALL branches (latest, latest-wolfi, hardened, hardened-wolfi) push here.
+# Uses [skip ci] so the commit does NOT trigger another pipeline.
+# ─────────────────────────────────────────────────────────────────────────────
+update_readme_badge:
+  tags:
+    - oracle
+  image: alpine:latest        # lightweight — no Docker needed here
+  stage: badge
+  before_script:
+    - apk add --no-cache git python3
+  needs:
+    - job: build_auto
+      artifacts: true         # pulls AGH_VER, UNBOUND_VER, DNSPROXY_VER, BUILD_TYPE, BUILD_DATE
+  script:
+    - |
+      echo "==> Updating README badge for '${CI_COMMIT_BRANCH}'"
+      echo "    AGH=${AGH_VER}  UB=${UNBOUND_VER}  DP=${DNSPROXY_VER}  type=${BUILD_TYPE}"
+
+      # ── Git setup ──────────────────────────────────────────────────────────
+      git config user.email "ci-bot@gitlab.com"
+      git config user.name "GitLab CI Bot"
+      git remote set-url origin \
+        "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+
+      # ── Checkout 'latest' branch — all branches update one central README ──
+      git fetch origin latest
+      git checkout -B latest origin/latest
+
+      # ── Write update_readme.py using the proven heredoc pattern ───────────
+      cat << 'PYEOF' > update_readme.py
+      import sys, re, textwrap
+
+      def run():
+          branch, agh, ub, dp, btype, bdate = sys.argv[1:]
+
+          def encode(v):
+              """Escape version string for shields.io static badge URL."""
+              return v.replace('_', '__').replace('-', '--').replace(' ', '_')
+
+          def badge(label, version, color, logo=None):
+              v = encode(version)
+              url = f"https://img.shields.io/badge/{label}-{v}-{color}"
+              if logo:
+                  url += f"?logo={logo}&logoColor=white"
+              return f"![{version}]({url})"
+
+          agh_badge = badge("AGH",      agh, "6ABF4B", "adguard")
+          ub_badge  = badge("Unbound",  ub,  "0077CC")
+          dp_badge  = badge("dnsproxy", dp,  "6ABF4B", "adguard")
+
+          replacement = (
+              f'| `{branch}` | {agh_badge} | {ub_badge} | {dp_badge}'
+              f' | {btype} | `{bdate}` |\n'
+          )
+
+          with open('README.md', 'r', encoding='utf-8') as f:
+              lines = f.readlines()
+
+          new_lines = []
+          updated   = False
+          # Matches the table row that starts with | `<branch>` |
+          pattern = re.compile(rf"^\|\s*`{re.escape(branch)}`\s*\|.*$")
+
+          for line in lines:
+              if pattern.match(line):
+                  new_lines.append(replacement)
+                  updated = True
+              else:
+                  new_lines.append(line)
+
+          if updated:
+              with open('README.md', 'w', encoding='utf-8') as f:
+                  f.writelines(new_lines)
+              print(f"SUCCESS: Updated badge row for '{branch}'")
+          else:
+              print(f"ERROR: Row for '{branch}' not found in README.md")
+              sys.exit(1)
+
+      if __name__ == "__main__":
+          run()
+      PYEOF
+
+      # ── Fix indentation added by the YAML heredoc formatter ───────────────
+      python3 -c "
+      import textwrap
+      with open('update_readme.py') as f: c = f.read()
+      with open('update_readme.py', 'w') as f: f.write(textwrap.dedent(c))
+      "
+
+      # ── Run the badge update ───────────────────────────────────────────────
+      python3 update_readme.py \
+        "${CI_COMMIT_BRANCH}" \
+        "${AGH_VER}" \
+        "${UNBOUND_VER}" \
+        "${DNSPROXY_VER}" \
+        "${BUILD_TYPE}" \
+        "${BUILD_DATE}"
+
+      # ── Commit and push to 'latest' ────────────────────────────────────────
+      git add README.md
+      if git diff-index --quiet HEAD -- README.md; then
+        echo "==> No README changes detected, skipping commit."
+      else
+        git commit -m \
+          "ci: [skip ci] update badge for ${CI_COMMIT_BRANCH} (AGH:${AGH_VER} UB:${UNBOUND_VER} DP:${DNSPROXY_VER})"
+        git pull --rebase origin latest
+        git push origin HEAD:latest
+        echo "==> README.md updated on 'latest' branch."
+      fi
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage: promote  (manual — promotes *-auto tag to live tag)
+# ─────────────────────────────────────────────────────────────────────────────
 promote_live:
   <<: *docker_setup
   stage: promote
@@ -79,15 +266,19 @@ promote_live:
         -t $IMAGE_NAME:${DEST_TAG} \
         $IMAGE_NAME:${SOURCE_TAG}
     - |
-      TOKEN=$(curl -s -H "Content-Type: application/json" -X POST -d "{\"username\": \"${DOCKER_HUB_USERNAME}\", \"password\": \"${DOCKER_HUB_PASSWORD}\"}" https://hub.docker.com/v2/users/login/ | jq -r .token)
-      
+      TOKEN=$(curl -s -H "Content-Type: application/json" -X POST \
+        -d "{\"username\": \"${DOCKER_HUB_USERNAME}\", \"password\": \"${DOCKER_HUB_PASSWORD}\"}" \
+        https://hub.docker.com/v2/users/login/ | jq -r .token)
+
       if [ "$CI_PIPELINE_SOURCE" == "web" ]; then
         DEL_TAG="${TARGET_BRANCH}-auto"
       else
         DEL_TAG="${CI_COMMIT_BRANCH}-auto"
       fi
-      
-      curl -i -X DELETE -H "Authorization: JWT ${TOKEN}" "https://hub.docker.com/v2/repositories/${IMAGE_NAME}/tags/${DEL_TAG}"
+
+      curl -i -X DELETE \
+        -H "Authorization: JWT ${TOKEN}" \
+        "https://hub.docker.com/v2/repositories/${IMAGE_NAME}/tags/${DEL_TAG}"
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/'
       when: manual
