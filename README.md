@@ -11,27 +11,27 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 
 ## Available Image Tags
 
-> `📦 pkg` = installed from OS package repository &nbsp;·&nbsp; `🔨 src` = compiled from source at build time
 
 <!-- VERSIONS_TABLE_START -->
-| Tag | AdGuardHome | Unbound | dnsproxy | How Built | Last Built (UTC) | Base Image | Security Level | Description |
+| Tag | AdGuardHome | Unbound | dnsproxy | How Built | Last Built (UTC) | Security Level | Description |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `latest` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 📦 pkg | `—` | Alpine Linux | Standard | Standard image running as root. Lightweight and stable. |
-| `latest-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 📦 pkg | `—` | Wolfi OS | Enhanced | Built with [Wolfi](https://github.com/wolfi-dev) for fewer vulnerabilities. |
-| `hardened` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 🔨 src | `—` | Alpine Linux | **High** | **Non-Root execution**. Runs as `adguard` user with `libcap` capabilities. |
-| `hardened-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 🔨 src | `—` | Wolfi OS | **Maximum** | Wolfi base + Non-Root execution for maximum security hardening. |
+| `latest` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | `—` | Alpine Linux | Standard | Standard image running as root. Lightweight and stable. |
+| `latest-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | `—` | Wolfi OS | Enhanced | Built with [Wolfi](https://github.com/wolfi-dev) for fewer vulnerabilities. |
+| `hardened` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | `—` | Alpine Linux | **High** | **Non-Root execution**. Runs as `adguard` user with `libcap` capabilities. |
+| `hardened-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | `—` | Wolfi OS | **Maximum** | Wolfi base + Non-Root execution for maximum security hardening. |
 <!-- VERSIONS_TABLE_END -->
 
 ---
 
 ## Quick Start (Hardened Images)
 
-The `hardened` and `hardened-wolfi` images use a **Hybrid Setup Mode** unless you bind the existing AdGuardHome configuration.
+The `hardened` and `hardened-wolfi` images use a **Hybrid Setup Mode** unless you bind an existing AdGuardHome configuration.
 
-1.  **First Run**: The container starts as **Root** to allow you to complete the AdGuard Home "Get Started" wizard (which requires root).
-2.  **Setup**: Access `http://localhost:3000` and finish the setup.
-3.  **Restart**: **You MUST restart the container** after setup.
-4.  **Runtime**: On the second boot, it automatically drops privileges and runs as the **non-root `adguard` user**.
+1.  **First Run**: The container starts as **Root** to allow you to complete the AdGuard Home "Get Started" wizard (which requires root).
+2.  **Setup**: Access `http://localhost:3000` and finish the setup.
+3.  **Restart**: **You MUST restart the container** after setup.
+4.  **Runtime**: On the second boot, it automatically drops privileges and runs as the **non-root `adguard` user**.
+
 ---
 ### Docker Compose
 
