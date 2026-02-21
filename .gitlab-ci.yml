@@ -159,29 +159,38 @@ create_manifest:
 update_readme_badge:
   tags:
     - oracle
-  image: alpine:latest        # lightweight — no Docker needed here
+  image: alpine:latest
   stage: badge
   before_script:
     - apk add --no-cache git python3
   needs:
     - job: build_auto
-      artifacts: true         # pulls AGH_VER, UNBOUND_VER, DNSPROXY_VER, BUILD_TYPE, BUILD_DATE
+      artifacts: true
   script:
     - |
-      echo "==> Updating README badge for '${CI_COMMIT_BRANCH}'"
-      echo "    AGH=${AGH_VER}  UB=${UNBOUND_VER}  DP=${DNSPROXY_VER}  type=${BUILD_TYPE}"
+      # 1. Map branch to the correct row for simulation
+      if [[ "$CI_COMMIT_BRANCH" == *"hardened-wolfi"* ]]; then
+        TARGET_ROW="hardened-wolfi"
+      elif [[ "$CI_COMMIT_BRANCH" == *"latest-wolfi"* ]]; then
+        TARGET_ROW="latest-wolfi"
+      elif [[ "$CI_COMMIT_BRANCH" == *"hardened"* ]]; then
+        TARGET_ROW="hardened"
+      else
+        TARGET_ROW="latest"
+      fi
 
-      # ── Git setup ──────────────────────────────────────────────────────────
-      git config user.email "ci-bot@gitlab.com"
-      git config user.name "GitLab CI Bot"
-      git remote set-url origin \
-        "https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+      echo "==> Updating README row '${TARGET_ROW}' on branch 'latest'"
 
-      # ── Checkout 'latest' branch — all branches update one central README ──
+      # 2. Git setup using GL_TOKEN for write access
+      git config user.email "ci-bot@andrianey.my.id"
+      git config user.name "CI Bot"
+      git remote set-url origin "https://oauth2:${GL_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+
+      # 3. Checkout 'latest' branch to update the central table
       git fetch origin latest
       git checkout -B latest origin/latest
 
-      # ── Write update_readme.py using the proven heredoc pattern ───────────
+      # 4. Write update_readme.py (using your proven heredoc pattern)
       cat << 'PYEOF' > update_readme.py
       import sys, re, textwrap
 
@@ -189,7 +198,6 @@ update_readme_badge:
           branch, agh, ub, dp, btype, bdate = sys.argv[1:]
 
           def encode(v):
-              """Escape version string for shields.io static badge URL."""
               return v.replace('_', '__').replace('-', '--').replace(' ', '_')
 
           def badge(label, version, color, logo=None):
@@ -199,21 +207,18 @@ update_readme_badge:
                   url += f"?logo={logo}&logoColor=white"
               return f"![{version}]({url})"
 
-          agh_badge = badge("AGH",      agh, "6ABF4B", "adguard")
-          ub_badge  = badge("Unbound",  ub,  "0077CC")
-          dp_badge  = badge("dnsproxy", dp,  "6ABF4B", "adguard")
+          agh_badge = badge("AGH", agh, "6ABF4B", "adguard")
+          ub_badge  = badge("Unbound", ub, "0077CC")
+          dp_badge  = badge("dnsproxy", dp, "6ABF4B", "adguard")
 
-          replacement = (
-              f'| `{branch}` | {agh_badge} | {ub_badge} | {dp_badge}'
-              f' | {btype} | `{bdate}` |\n'
-          )
+          replacement = f'| `{branch}` | {agh_badge} | {ub_badge} | {dp_badge} | {btype} | `{bdate}` |\n'
 
           with open('README.md', 'r', encoding='utf-8') as f:
               lines = f.readlines()
 
           new_lines = []
-          updated   = False
-          # Matches the table row that starts with | `<branch>` |
+          updated = False
+          # Matches the table row that starts with | `branch` |
           pattern = re.compile(rf"^\|\s*`{re.escape(branch)}`\s*\|.*$")
 
           for line in lines:
@@ -235,36 +240,25 @@ update_readme_badge:
           run()
       PYEOF
 
-      # ── Fix indentation added by the YAML heredoc formatter ───────────────
-      python3 -c "
-      import textwrap
-      with open('update_readme.py') as f: c = f.read()
-      with open('update_readme.py', 'w') as f: f.write(textwrap.dedent(c))
-      "
+      # 5. Fix indentation
+      python3 -c "import textwrap; f=open('update_readme.py'); c=f.read(); f.close(); open('update_readme.py','w').write(textwrap.dedent(c))"
 
-      # ── Run the badge update ───────────────────────────────────────────────
-      python3 update_readme.py \
-        "${CI_COMMIT_BRANCH}" \
-        "${AGH_VER}" \
-        "${UNBOUND_VER}" \
-        "${DNSPROXY_VER}" \
-        "${BUILD_TYPE}" \
-        "${BUILD_DATE}"
+      # 6. Run update with TARGET_ROW instead of CI_COMMIT_BRANCH
+      python3 update_readme.py "$TARGET_ROW" "$AGH_VER" "$UNBOUND_VER" "$DNSPROXY_VER" "$BUILD_TYPE" "$BUILD_DATE"
 
-      # ── Commit and push to 'latest' ────────────────────────────────────────
+      # 7. Commit and push back to 'latest'
       git add README.md
       if git diff-index --quiet HEAD -- README.md; then
-        echo "==> No README changes detected, skipping commit."
+        echo "==> No changes detected."
       else
-        git commit -m \
-          "ci: [skip ci] update badge for ${CI_COMMIT_BRANCH} (AGH:${AGH_VER} UB:${UNBOUND_VER} DP:${DNSPROXY_VER})"
+        git commit -m "ci: [skip ci] update badge for ${TARGET_ROW}"
         git pull --rebase origin latest
         git push origin HEAD:latest
-        echo "==> README.md updated on 'latest' branch."
       fi
   rules:
+    # Allow simulation from your patch branch
+    - if: '$CI_COMMIT_BRANCH == "andrianey-hardened-wolfi-patch-72044"'
     - if: '$CI_COMMIT_BRANCH =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/'
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage: promote  (manual — promotes *-auto tag to live tag)
 # ─────────────────────────────────────────────────────────────────────────────
