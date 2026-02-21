@@ -4,6 +4,28 @@ stages:
   - badge
   - promote
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Global pipeline gate — controls WHEN a pipeline is even created.
+#
+#   ✅  Runs when: Dockerfile, entrypoint.sh, unbound/*, crontab/*, .gitlab-ci.yml change
+#   🚫  Skipped when: only README.md or other docs change
+#   🚫  Skipped when: commit message contains [skip ci]  (used by CI bot)
+# ─────────────────────────────────────────────────────────────────────────────
+workflow:
+  rules:
+    # Honor [skip ci] in commit messages (CI bot badge updates use this)
+    - if: '$CI_COMMIT_MESSAGE =~ /\[skip ci\]/i'
+      when: never
+    # Only trigger pipeline when build-relevant files change
+    - changes:
+        - Dockerfile
+        - entrypoint.sh
+        - unbound/**/*
+        - crontab/**/*
+        - .gitlab-ci.yml
+    # Anything else (README.md, *.md, etc.) → no pipeline
+    - when: never
+
 variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
