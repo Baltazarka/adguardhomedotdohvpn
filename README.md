@@ -16,7 +16,7 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 | `latest` | [![latest](https://gitlab.com/andrianey/adguardhomedotdoh/badges/latest/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=latest) |
 | `latest-wolfi` | [![latest-wolfi](https://gitlab.com/andrianey/adguardhomedotdoh/badges/latest-wolfi/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=latest-wolfi) |
 | `hardened` | [![hardened](https://gitlab.com/andrianey/adguardhomedotdoh/badges/hardened/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=hardened) |
-| `hardened-wolfi` | ![v0.107.2222](https://img.shields.io/badge/AGH-v0.107.2222-6ABF4B?logo=adguard&logoColor=white) | ![1.19.0](https://img.shields.io/badge/Unbound-1.19.0-0077CC) | ![v0.72.0](https://img.shields.io/badge/dnsproxy-v0.72.0-6ABF4B?logo=adguard&logoColor=white) | 🔨 src | `2026-02-21 11:00Z` |
+| `hardened-wolfi` | [![hardened-wolfi](https://gitlab.com/andrianey/adguardhomedotdoh/badges/hardened-wolfi/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=hardened-wolfi) |
 
 ---
 
@@ -30,7 +30,7 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 | `latest` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 📦 pkg | `—` |
 | `latest-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 📦 pkg | `—` |
 | `hardened` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 🔨 src | `—` |
-| `hardened-wolfi` | ![v0.107.2222](https://img.shields.io/badge/AGH-v0.107.2222-6ABF4B?logo=adguard&logoColor=white) | ![1.19.0](https://img.shields.io/badge/Unbound-1.19.0-0077CC) | ![v0.72.0](https://img.shields.io/badge/dnsproxy-v0.72.0-6ABF4B?logo=adguard&logoColor=white) | 🔨 src | `2026-02-21 11:00Z` |
+| `hardened-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 🔨 src | `—` |
 <!-- VERSIONS_TABLE_END -->
 
 ---
