@@ -37,57 +37,69 @@ The `hardened` and `hardened-wolfi` images use a **Hybrid Setup Mode** unless yo
 
 ```yaml
 services:
-  adguardhome:
-    # Choose your preferred tag: 'latest', 'latest-wolfi', 'hardened', or 'hardened-wolfi'
-    image: andrianey/adguardhomedotdoh:latest
-    container_name: adguardhome
-    hostname: adguardhome
-    restart: unless-stopped
-    
-    networks:
-      adguard_net:
-        ipv4_address: 172.172.0.2
-    
-    environment:
-      - TZ=Asia/Jakarta # Set your timezone
-      - PUID=1000       # User ID for file ownership
-      - PGID=1000       # Group ID for file ownership
-    
-    ports:
-      # DNS
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "853:853/tcp"
-      - "853:853/udp"
-      # Web & DoH
-      - "80:80/tcp"
-      - "443:443/tcp"
-      - "443:443/udp"
-      - "3000:3000/tcp"
-      # DHCP
-      - "67:67/udp"
-      - "68:68/udp"
-    
-    volumes:
-      # Core AdGuard Home Data for persistent configuration
-      - /opt/adguardhome/conf:/opt/adguardhome/conf
-      - /opt/adguardhome/work:/opt/adguardhome/work
+  adguardhome:
+    # Choose your preferred tag: 'latest', 'latest-wolfi', 'hardened', or 'hardened-wolfi'
+    image: andrianey/adguardhomedotdoh:latest
+    container_name: adguardhome
+    hostname: adguardhome
+    restart: unless-stopped
+    
+    networks:
+      adguard_net:
+        ipv4_address: 172.172.0.2
+    
+    environment:
+      - TZ=Asia/Jakarta # Set your timezone
+      - PUID=1000       # User ID for file ownership
+      - PGID=1000       # Group ID for file ownership
+      # Optional: Custom DNS Proxy Settings
+      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query https://1.0.0.1/dns-query tls://[2606:4700:4700::1111] tls://[2606:4700:4700::1001] https://[2606:4700:4700::1111]/dns-query https://[2606:4700:4700::1001]/dns-query tls://9.9.9.9 tls://149.112.112.112 tls://[2620:fe::fe] tls://[2620:fe::9] https://dns9.quad9.net/dns-query
+      # - DNSPROXY_FLAGS=--upstream-mode=parallel --cache --cache-optimistic --cache-size=4194304 --cache-min-ttl=600
+      
+    ports:
+      # DNS
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "853:853/tcp"
+      - "853:853/udp"
+      # Web & DoH
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+      - "3000:3000/tcp"
+      # DHCP
+      - "67:67/udp"
+      - "68:68/udp"
+    
+    volumes:
+      # Core AdGuard Home Data for persistent configuration
+      - /opt/adguardhome/conf:/opt/adguardhome/conf
+      - /opt/adguardhome/work:/opt/adguardhome/work
 
-      # Mount custom SSL certificates resolve over public address https://localhost/dns-query
-      # - /opt/adguardhome/certs:/opt/certs
-      
-      # Optional: Custom Config Overrides
-      # Only mount these if you have custom config files you want to inject
-      # - /opt/adguardhome/stubby/stubby.yml:/etc/stubby/stubby.yml:ro
-      # - /opt/adguardhome/unbound/unbound.conf:/etc/unbound/unbound.conf:ro
+      # Mount custom SSL certificates to enable encryption
+      # - /opt/adguardhome/certs:/opt/certs
+      
+      # Optional: Custom Config Overrides
+      # - /opt/adguardhome/unbound/unbound.conf:/etc/unbound/unbound.conf
 
 networks:
-  adguard_net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.172.0.0/24
+  adguard_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.172.0.0/24
 ```
+
+---
+
+## Environment Variables
+
+You can customize the `dnsproxy` configuration using environment variables in your `docker-compose.yml`:
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `DNSPROXY_UPSTREAM` | Cloudflare DoT/DoH | Space-separated list of upstream servers (e.g., `tls://1.1.1.1 https://1.1.1.1/dns-query`). |
+| `DNSPROXY_FLAGS` | `--verbose` | Additional flags for dnsproxy (e.g., `--cache-optimistic`). |
 
 ---
 
@@ -96,41 +108,34 @@ The image comes pre-configured with the following services running internally:
 
 | Component | Internal Port | Description |
 | :--- | :--- | :--- |
-| **Unbound** | `127.0.0.1:53` | Recursive resolver with DNSSEC validation. |
-| **Stubby** | `127.0.0.1:8053` | DNS-over-TLS resolver. |
-| **Cloudflared** | `127.0.0.1:5053` | DNS-over-HTTPS tunnel. |
+| **Unbound** | `127.0.0.1:5335` | Recursive resolver with DNSSEC validation + Valkey Cache. |
+| **dnsproxy** | `127.0.0.1:8053` | Upstream DoH/DoT proxy (replaces Stubby/Cloudflared). |
 
 ## Configuration
 
 ### AdGuard Home Upstream DNS
-When configuring AdGuard Home via the web UI (**Settings -> DNS settings**), use these Local Upstreams to leverage the embedded services:
+The architecture is designed to chain requests:
+`Client -> AdGuard Home -> Unbound -> Valkey Cache -> dnsproxy -> Configured upstreams (DoH, DoT, DoQ and DNSCrypt support)`
 
-1.  **Upstream DNS servers** & **Bootstrap DNS servers**:
-    ```
-    # Unbound (Recursive + DNSSEC)
-    127.0.0.1:53
-    
-    # Cloudflared (DoH)
-    127.0.0.1:5053
-    
-    # Stubby (DoT)
-    127.0.0.1:8053
-    ```
+Configure **Settings -> DNS settings** with:
 
-2.  **Settings**:
-    *   Check **"Parallel requests"** (Query all upstreams simultaneously).
-    *   **Cache size**: `0` (Let Unbound/Stubby handle caching, or set low if preferred).
+1.  **Upstream DNS servers**:
+    ```
+    127.0.0.1:5335
+    ```
+
+
+2.  **Verify**:
+    *   Click "Test upstreams" to ensure connectivity.
+    *   **Cache size**: You may set this to `0` in AdGuard Home to rely on Unbound's efficient caching paired with Valkey.
 
 ---
 
 ## Hardening features
 The `hardened` tags implement best practices for container security:
-*   **Non-Root User**: Runs as a dedicated `adguard` user (UID 1000).
-*   **Capabilities**: Uses `libcap` to bind to privileged ports (53, 80) without full root access.
-*   **Minimal Base**: Wolfi edition offers a software supply chain secure base image.
-*   **Permission Fixer**: The entrypoint automatically corrects permissions on mounted volumes.
+*   **Non-Root User**: Runs as a dedicated `adguard` user (UID 1000).
+*   **Capabilities**: Uses `libcap` to bind to privileged ports (53, 80) without full root access.
+*   **Minimal Base**: Wolfi edition offers a software supply chain secure base image.
+*   **Permission Fixer**: The entrypoint automatically corrects permissions on mounted volumes.
 
 **Note**: Since the process runs as UID 1000, ensure your host volumes are writable by this user or let Docker automatically handle the ownership (which the entrypoint facilitates).
-
-
-This is still pending
