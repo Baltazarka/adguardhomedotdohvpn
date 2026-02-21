@@ -9,6 +9,29 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 ![Check My DNS](https://raw.githubusercontent.com/andrianey/adguardhomedotdoh/refs/heads/latest/cmdns.jpg)
 ![Cloudflare-Test](https://raw.githubusercontent.com/andrianey/adguardhomedotdoh/7141b52e7e17ed0264a5a639a610ecd97dccc54e/cloudflare-dns.jpg)
 
+---
+
+## 🚦 Build Status
+
+| Branch | Pipeline | Image Tag |
+| :--- | :--- | :--- |
+| `latest` | [![latest](https://gitlab.com/andrianey/adguardhomedotdoh/badges/latest/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=latest) | [![Docker Image Version (latest)](https://img.shields.io/docker/v/andrianey/adguardhomedotdoh/latest?logo=docker&label=latest&color=blue)](https://hub.docker.com/r/andrianey/adguardhomedotdoh/tags) |
+| `latest-wolfi` | [![latest-wolfi](https://gitlab.com/andrianey/adguardhomedotdoh/badges/latest-wolfi/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=latest-wolfi) | [![Docker Image Version (latest-wolfi)](https://img.shields.io/docker/v/andrianey/adguardhomedotdoh/latest-wolfi?logo=docker&label=latest-wolfi&color=blue)](https://hub.docker.com/r/andrianey/adguardhomedotdoh/tags) |
+| `hardened` | [![hardened](https://gitlab.com/andrianey/adguardhomedotdoh/badges/hardened/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=hardened) | [![Docker Image Version (hardened)](https://img.shields.io/docker/v/andrianey/adguardhomedotdoh/hardened?logo=docker&label=hardened&color=orange)](https://hub.docker.com/r/andrianey/adguardhomedotdoh/tags) |
+| `hardened-wolfi` | [![hardened-wolfi](https://gitlab.com/andrianey/adguardhomedotdoh/badges/hardened-wolfi/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=hardened-wolfi) | [![Docker Image Version (hardened-wolfi)](https://img.shields.io/docker/v/andrianey/adguardhomedotdoh/hardened-wolfi?logo=docker&label=hardened-wolfi&color=red)](https://hub.docker.com/r/andrianey/adguardhomedotdoh/tags) |
+
+---
+
+## 📦 Upstream Component Versions
+
+All components are built from **latest upstream source** at the time of each CI pipeline run. The badges below reflect the latest available upstream release:
+
+| Component | Latest Upstream Version | Source |
+| :--- | :--- | :--- |
+| **AdGuard Home** | [![GitHub Release](https://img.shields.io/github/v/release/AdguardTeam/AdGuardHome?logo=adguard&label=AdGuardHome&color=67b346)](https://github.com/AdguardTeam/AdGuardHome/releases/latest) | [AdguardTeam/AdGuardHome](https://github.com/AdguardTeam/AdGuardHome) |
+| **dnsproxy** | [![GitHub Release](https://img.shields.io/github/v/release/AdguardTeam/dnsproxy?logo=adguard&label=dnsproxy&color=67b346)](https://github.com/AdguardTeam/dnsproxy/releases/latest) | [AdguardTeam/dnsproxy](https://github.com/AdguardTeam/dnsproxy) |
+| **Unbound** | [![GitHub Release](https://img.shields.io/github/v/release/NLnetLabs/unbound?logo=git&label=Unbound&color=0077cc)](https://github.com/NLnetLabs/unbound/releases/latest) | [NLnetLabs/unbound](https://github.com/NLnetLabs/unbound) |
+
 ## Available Image Tags
 
 | Tag | Base Image | Security Level | Description |
