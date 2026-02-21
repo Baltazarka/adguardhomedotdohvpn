@@ -13,12 +13,12 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 
 
 <!-- VERSIONS_TABLE_START -->
-| Tag | AdGuardHome | Unbound | dnsproxy | Last Built (UTC) | Base Image | Security Level | Description |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `latest` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | `—` | Alpine Linux | Standard | Standard image running as root. Lightweight and stable. |
-| `latest-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | `—` | Wolfi OS | Enhanced | Built with [Wolfi](https://github.com/wolfi-dev) for fewer vulnerabilities. |
-| `hardened` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | `—` | Alpine Linux | **High** | **Non-Root execution**. Runs as `adguard` user with `libcap` capabilities. |
-| `hardened-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | `—` | Wolfi OS | **Maximum** | Wolfi base + Non-Root execution for maximum security hardening. |
+| Tag | AdGuardHome | Unbound | dnsproxy | Base Image | Security Level | Description |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `latest` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | Alpine Linux | Standard | Standard image running as root. Lightweight and stable. |
+| `latest-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | Wolfi OS | Enhanced | Built with [Wolfi](https://github.com/wolfi-dev) for fewer vulnerabilities. |
+| `hardened` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | Alpine Linux | **High** | **Non-Root execution**. Runs as `adguard` user with `libcap` capabilities. |
+| `hardened-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | Wolfi OS | **Maximum** | Wolfi base + Non-Root execution for maximum security hardening. |
 <!-- VERSIONS_TABLE_END -->
 
 ---
