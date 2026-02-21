@@ -9,17 +9,6 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 
 ---
 
-## 🚦 Build Status
-
-| Branch | Pipeline Status |
-| :--- | :--- |
-| `latest` | [![latest](https://gitlab.com/andrianey/adguardhomedotdoh/badges/latest/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=latest) |
-| `latest-wolfi` | [![latest-wolfi](https://gitlab.com/andrianey/adguardhomedotdoh/badges/latest-wolfi/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=latest-wolfi) |
-| `hardened` | [![hardened](https://gitlab.com/andrianey/adguardhomedotdoh/badges/hardened/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=hardened) |
-| `hardened-wolfi` | [![hardened-wolfi](https://gitlab.com/andrianey/adguardhomedotdoh/badges/hardened-wolfi/pipeline.svg)](https://gitlab.com/andrianey/adguardhomedotdoh/-/pipelines?ref=hardened-wolfi) |
-
----
-
 ## 📦 Component Versions by Image Tag
 
 > `📦 pkg` = installed from OS package repository &nbsp;·&nbsp; `🔨 src` = compiled from source at build time
