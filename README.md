@@ -22,6 +22,8 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 | `hardened-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 🔨 src | `—` | Wolfi OS | **Maximum** | Wolfi base + Non-Root execution for maximum security hardening. |
 <!-- VERSIONS_TABLE_END -->
 
+---
+
 ## Quick Start (Hardened Images)
 
 The `hardened` and `hardened-wolfi` images use a **Hybrid Setup Mode** unless you bind the existing AdGuardHome configuration.
