@@ -19,7 +19,7 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 | `latest` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 📦 pkg | `—` |
 | `latest-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 📦 pkg | `—` |
 | `hardened` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 🔨 src | `—` |
-| `hardened-wolfi` | ![pending](https://img.shields.io/badge/AGH-pending-lightgrey) | ![pending](https://img.shields.io/badge/Unbound-pending-lightgrey) | ![pending](https://img.shields.io/badge/dnsproxy-pending-lightgrey) | 🔨 src | `—` |
+| `hardened-wolfi` | !["v0.108.0-a.1244+82f2ac68"](https://img.shields.io/badge/AGH-"v0.108.0--a.1244+82f2ac68"-6ABF4B?logo=adguard&logoColor=white) | !["1.24.2"](https://img.shields.io/badge/Unbound-"1.24.2"-0077CC) | !["v0.79.0-dirty"](https://img.shields.io/badge/dnsproxy-"v0.79.0--dirty"-6ABF4B?logo=adguard&logoColor=white) | "🔨 src" | `"2026-02-21 14:30Z"` |
 <!-- VERSIONS_TABLE_END -->
 
 ---
@@ -31,7 +31,7 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 | `latest` | Alpine Linux | Standard | Standard image running as root. Lightweight and stable. |
 | `latest-wolfi` | Wolfi OS | Enhanced | Built with [Wolfi](https://github.com/wolfi-dev) for fewer vulnerabilities. |
 | `hardened` | Alpine Linux | **High** | **Non-Root execution**. Runs as `adguard` user with `libcap` capabilities. |
-| `hardened-wolfi` | Wolfi OS | **Maximum** | Wolfi base + Non-Root execution for maximum security hardening. |
+| `hardened-wolfi` | !["v0.108.0-a.1244+82f2ac68"](https://img.shields.io/badge/AGH-"v0.108.0--a.1244+82f2ac68"-6ABF4B?logo=adguard&logoColor=white) | !["1.24.2"](https://img.shields.io/badge/Unbound-"1.24.2"-0077CC) | !["v0.79.0-dirty"](https://img.shields.io/badge/dnsproxy-"v0.79.0--dirty"-6ABF4B?logo=adguard&logoColor=white) | "🔨 src" | `"2026-02-21 14:30Z"` |
 
 ---
 
