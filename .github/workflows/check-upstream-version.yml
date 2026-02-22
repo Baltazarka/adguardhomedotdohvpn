@@ -25,19 +25,29 @@ jobs:
         run: |
           # 1. Fetch Upstream Data
           if [[ "${{ matrix.type }}" == "stable" ]]; then
-            # Get clean version (e.g., v0.107.72)
+            # Stable is easy: Use the GitHub Release Tag
             UPSTREAM=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
           else
-            # For Edge/Hardened, check the latest GitHub tag to get the v0.108.0-a... string
-            UPSTREAM=$(curl -s "https://api.github.com/repos/AdguardTeam/AdGuardHome/tags" | jq -r '.[0].name')
+            # EDGE: We fetch the internal version label from the Docker Hub Manifest
+            # This mimics your 'docker run --version' but is much faster
+            TOKEN=$(curl -s "https://auth.docker.io/token?service=registry.docker.io&scope=repository:adguard/adguardhome:pull" | jq -r .token)
+            UPSTREAM=$(curl -s -H "Authorization: Bearer $TOKEN" \
+              -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+              "https://registry-1.docker.io/v2/adguard/adguardhome/manifests/edge" | \
+              jq -r '.history[0].v1Compatibility' | \
+              grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' | head -1 || echo "edge")
+            
+            # Fallback to GitHub Tags if Docker Manifest doesn't reveal the version
+            if [[ "$UPSTREAM" == "edge" ]]; then
+              UPSTREAM=$(curl -s "https://api.github.com/repos/AdguardTeam/AdGuardHome/tags" | jq -r '.[0].name')
+            fi
           fi
 
-          # 2. Extract ONLY the version string from README.md
+          # 2. Extract CURRENT from README
           BRANCH_NAME="${{ matrix.branches[0] }}"
           RAW_ROW=$(grep "| \`$BRANCH_NAME\` |" README.md)
-          
-          # Logic: Get column 3, find the version, then cut everything after the first ']'
-          CURRENT=$(echo "$RAW_ROW" | awk -F'|' '{print $3}' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' | cut -d']' -f1)
+          # Capture everything from 'v' until the closing bracket ']'
+          CURRENT=$(echo "$RAW_ROW" | awk -F'|' '{print $3}' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^]]*' | head -1 | xargs)
 
           echo "Upstream: $UPSTREAM"
           echo "README:   $CURRENT"
