@@ -17,17 +17,39 @@ jobs:
             branches: ["hardened", "hardened-wolfi"]
 
     steps:
-      - name: Get Latest Version/Hash
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get Latest Version and Compare
         id: version_check
         run: |
+          # 1. Fetch Upstream Data
           if [[ "${{ matrix.type }}" == "stable" ]]; then
-            VAL=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
+            UPSTREAM=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
           else
-            VAL=$(curl -s "https://hub.docker.com/v2/repositories/adguard/adguardhome/tags/edge" | jq -r '.images[0].digest')
+            UPSTREAM=$(curl -s "https://hub.docker.com/v2/repositories/adguard/adguardhome/tags/edge" | jq -r '.images[0].digest')
           fi
-          echo "current_val=$VAL" >> $GITHUB_OUTPUT
+
+          # 2. Extract current version from README.md
+          # Grabs the first branch in your matrix to check its row
+          BRANCH_NAME="${{ matrix.branches[0] }}"
+          CURRENT=$(grep "| \`$BRANCH_NAME\` |" README.md | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' | head -1 || echo "none")
+
+          echo "Upstream: $UPSTREAM"
+          echo "README has: $CURRENT"
+
+          # 3. Decision Logic
+          if [[ "$UPSTREAM" == *"$CURRENT"* ]] && [[ "$CURRENT" != "none" ]]; then
+            echo "✅ Version matches README. Skipping build."
+            echo "should_trigger=false" >> $GITHUB_OUTPUT
+          else
+            echo "🚀 New version detected! Triggering GitLab..."
+            echo "should_trigger=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Trigger GitLab
+        # Only run if a new version was found
+        if: steps.version_check.outputs.should_trigger == 'true'
         env:
           GITLAB_TRIGGER_TOKEN: ${{ secrets.GITLAB_TRIGGER_TOKEN }}
           GITLAB_PROJECT_ID: ${{ secrets.GITLAB_PROJECT_ID }}
@@ -41,9 +63,9 @@ jobs:
               "https://gitlab.com/api/v4/projects/$GITLAB_PROJECT_ID/trigger/pipeline")
             
             if [ "$RESPONSE" = "201" ]; then
-              echo "✅ Success: Pipeline created for $branch (HTTP 201)"
+              echo "✅ Success: Pipeline created for $branch"
             else
-              echo "❌ Failed: GitLab returned HTTP $RESPONSE for $branch"
+              echo "❌ Failed: GitLab returned HTTP $RESPONSE"
               exit 1
             fi
           done
