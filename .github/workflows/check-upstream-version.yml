@@ -1,39 +1,37 @@
-name: Monitor AdGuardHome and Trigger GitLab
+name: Watch AdGuardHome Upstream
 on:
   schedule:
-    - cron: '0 * * * *'  # Check every hour
-  workflow_dispatch:      # Manual trigger for testing
+    - cron: '0 * * * *'  # Hourly check
+  workflow_dispatch:
 
 jobs:
-  check-versions:
+  check-upstream:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
           - type: "stable"
-            gitlab_branches: ["latest", "latest-wolfi"]
+            branches: ["latest", "latest-wolfi"]
           - type: "edge"
-            gitlab_branches: ["hardened", "hardened-wolfi"]
+            branches: ["hardened", "hardened-wolfi"]
+
     steps:
-      - name: Fetch Latest Version
-        id: versions
+      - name: Get Latest Version/Hash
+        id: version_check
         run: |
           if [[ "${{ matrix.type }}" == "stable" ]]; then
-            # Get latest official stable release tag
-            VER=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
+            VAL=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
           else
-            # Get the most recent tag from the development branch (Edge channel)
-            VER=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/tags | jq -r '.[0].name')
+            VAL=$(curl -s "https://hub.docker.com/v2/repositories/adguard/adguardhome/tags/edge" | jq -r '.images[0].digest')
           fi
-          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "current_val=$VAL" >> $GITHUB_OUTPUT
 
-      - name: Trigger GitLab Pipelines
+      - name: Trigger GitLab
         run: |
-          for branch in ${{ join(matrix.gitlab_branches, ' ') }}; do
-            echo "Triggering GitLab branch: $branch with version ${{ steps.versions.outputs.version }}"
+          for branch in ${{ join(matrix.branches, ' ') }}; do
             curl --request POST \
-              --form token=${{ secrets.GITLAB_TRIGGER_TOKEN }} \
+              --form token=${{ secrets.GL_TRIGGER_TOKEN }} \
               --form ref=$branch \
-              --form "variables[UPSTREAM_VERSION]=${{ steps.versions.outputs.version }}" \
-              "https://gitlab.com/api/v4/projects/${{ secrets.GITLAB_PROJECT_ID }}/trigger/pipeline"
+              --form "variables[UPSTREAM_SYNC]=true" \
+              "https://gitlab.com/api/v4/projects/${{ secrets.GL_PROJECT_ID }}/trigger/pipeline"
           done
