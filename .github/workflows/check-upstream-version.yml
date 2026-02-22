@@ -27,23 +27,27 @@ jobs:
           if [[ "${{ matrix.type }}" == "stable" ]]; then
             UPSTREAM=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
           else
-            UPSTREAM=$(curl -s "https://hub.docker.com/v2/repositories/adguard/adguardhome/tags/edge" | jq -r '.images[0].digest')
+            # For Edge, since we want to match the string in your README, 
+            # we check the GitHub Tags instead of the Docker Digest.
+            # This finds the most recent tag (like v0.108.0-a.1244...)
+            UPSTREAM=$(curl -s "https://api.github.com/repos/AdguardTeam/AdGuardHome/tags" | jq -r '.[0].name')
           fi
 
-          # 2. Extract current version from README.md
-          # Grabs the first branch in your matrix to check its row
+          # 2. Extract current version from your README.md
           BRANCH_NAME="${{ matrix.branches[0] }}"
+          # This regex matches the version string inside the Shields.io badge URL
           CURRENT=$(grep "| \`$BRANCH_NAME\` |" README.md | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' | head -1 || echo "none")
 
-          echo "Upstream: $UPSTREAM"
-          echo "README has: $CURRENT"
+          echo "Upstream found: $UPSTREAM"
+          echo "README currently has: $CURRENT"
 
           # 3. Decision Logic
+          # We use a substring match (== *) in case of slight formatting differences
           if [[ "$UPSTREAM" == *"$CURRENT"* ]] && [[ "$CURRENT" != "none" ]]; then
-            echo "✅ Version matches README. Skipping build."
+            echo "✅ Match found. Skipping build for $BRANCH_NAME."
             echo "should_trigger=false" >> $GITHUB_OUTPUT
           else
-            echo "🚀 New version detected! Triggering GitLab..."
+            echo "🚀 Mismatch detected! Triggering GitLab for $BRANCH_NAME..."
             echo "should_trigger=true" >> $GITHUB_OUTPUT
           fi
 
