@@ -25,35 +25,29 @@ jobs:
         run: |
           # 1. Fetch Upstream Data
           if [[ "${{ matrix.type }}" == "stable" ]]; then
-            # Stable uses GitHub Releases
+            # Get clean version (e.g., v0.107.72)
             UPSTREAM=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
           else
-            # Edge: We must fetch the specific 'edge' tag metadata to get its version name
-            # Docker Hub API for a single tag returns an object; we extract the name
-            UPSTREAM=$(curl -s "https://hub.docker.com/v2/repositories/adguard/adguardhome/tags/edge" | jq -r '.name')
-            
-            # If '.name' is just 'edge', we fallback to the most recent Alpha/Beta tag from the tags list
-            if [ "$UPSTREAM" == "edge" ] || [ -z "$UPSTREAM" ]; then
-              UPSTREAM=$(curl -s "https://hub.docker.com/v2/repositories/adguard/adguardhome/tags/?page_size=5" | jq -r '.results[0].name')
-            fi
+            # For Edge/Hardened, check the latest GitHub tag to get the v0.108.0-a... string
+            UPSTREAM=$(curl -s "https://api.github.com/repos/AdguardTeam/AdGuardHome/tags" | jq -r '.[0].name')
           fi
 
-          # 2. Extract ONLY the AdGuardHome column (Field 3)
+          # 2. Extract ONLY the version string from README.md
           BRANCH_NAME="${{ matrix.branches[0] }}"
           RAW_ROW=$(grep "| \`$BRANCH_NAME\` |" README.md)
           
-          # Clean extract: removes markdown and captures only the version string
-          CURRENT=$(echo "$RAW_ROW" | awk -F'|' '{print $3}' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' | head -1 | sed 's/)$//')
+          # Logic: Get column 3, find the version, then cut everything after the first ']'
+          CURRENT=$(echo "$RAW_ROW" | awk -F'|' '{print $3}' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' | cut -d']' -f1)
 
           echo "Upstream: $UPSTREAM"
-          echo "README (AGH Column): $CURRENT"
+          echo "README:   $CURRENT"
 
           # 3. Decision Logic
           if [[ "$UPSTREAM" == "$CURRENT" ]] && [[ -n "$CURRENT" ]]; then
-            echo "✅ Exact match. Skipping build for $BRANCH_NAME."
+            echo "✅ Match! Skipping build for $BRANCH_NAME."
             echo "should_trigger=false" >> $GITHUB_OUTPUT
           else
-            echo "🚀 Mismatch: $UPSTREAM vs $CURRENT. Triggering GitLab..."
+            echo "🚀 Mismatch! Upstream ($UPSTREAM) != README ($CURRENT). Triggering GitLab..."
             echo "should_trigger=true" >> $GITHUB_OUTPUT
           fi
 
