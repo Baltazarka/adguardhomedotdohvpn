@@ -23,37 +23,34 @@ jobs:
       - name: Get Latest Version and Compare
         id: version_check
         run: |
-          # 1. Fetch Upstream Data
+          # 1. Fetch Upstream Data (MATCHES YOUR GITLAB LOGIC)
           if [[ "${{ matrix.type }}" == "stable" ]]; then
             UPSTREAM=$(curl -s https://api.github.com/repos/AdguardTeam/AdGuardHome/releases/latest | jq -r .tag_name)
           else
-            # CORRECTED TEMPLATE: Use .Image to access Labels
-            # This mimics your 'docker run --version' by checking the image's own metadata
-            UPSTREAM=$(docker buildx imagetools inspect adguard/adguardhome:edge --format '{{ index .Image.Config.Labels "org.opencontainers.image.version" }}' 2>/dev/null || echo "edge")
+            echo "==> Pulling official edge image to inspect internal version..."
+            docker pull adguard/adguardhome:edge > /dev/null
             
-            # Fallback if label is missing (common in dev builds)
-            if [[ "$UPSTREAM" == "edge" || -z "$UPSTREAM" ]]; then
-               UPSTREAM=$(curl -s "https://api.github.com/repos/AdguardTeam/AdGuardHome/tags" | jq -r '.[0].name')
-            fi
+            # This is your EXACT GitLab logic adapted for GitHub Actions:
+            UPSTREAM=$(docker run --rm --entrypoint=/opt/adguardhome/AdGuardHome adguard/adguardhome:edge --version 2>&1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^ ]*' | head -1)
           fi
 
-          # 2. Extract ONLY the version string from README.md
+          # 2. Extract CLEAN version from README.md
           BRANCH_NAME="${{ matrix.branches[0] }}"
           RAW_ROW=$(grep "| \`$BRANCH_NAME\` |" README.md)
           
-          # This regex matches the version and stops before the ']'
-          # Handles: v0.108.0-a.1244+82f2ac68
+          # Extracts everything starting with 'v' and stops before the ']' 
+          # Matches: v0.108.0-a.1244+82f2ac68
           CURRENT=$(echo "$RAW_ROW" | awk -F'|' '{print $3}' | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+[^]]*' | head -1 | cut -d']' -f1 | xargs)
 
-          echo "Upstream: $UPSTREAM"
-          echo "README:   $CURRENT"
+          echo "Upstream (from Binary): $UPSTREAM"
+          echo "README (from Table):   $CURRENT"
 
           # 3. Decision Logic
-          if [[ "$UPSTREAM" == "$CURRENT" ]] && [[ -n "$CURRENT" ]]; then
-            echo "✅ Match found! Skipping build for $BRANCH_NAME."
+          if [[ -n "$UPSTREAM" ]] && [[ "$UPSTREAM" == "$CURRENT" ]]; then
+            echo "✅ Exact match. Skipping build for $BRANCH_NAME."
             echo "should_trigger=false" >> $GITHUB_OUTPUT
           else
-            echo "🚀 Mismatch detected! Triggering GitLab for $BRANCH_NAME..."
+            echo "🚀 Mismatch detected! Upstream ($UPSTREAM) != README ($CURRENT). Triggering GitLab..."
             echo "should_trigger=true" >> $GITHUB_OUTPUT
           fi
 
