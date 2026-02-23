@@ -20,7 +20,6 @@ variables:
   DOCKER_DRIVER: overlay2
   IMAGE_NAME: andrianey/adguardhomedotdoh
   DOCKER_BUILDKIT: "1"
-  # Note: DOCKER_HOST and DOCKER_TLS_CERTDIR removed because we are using the socket
   TARGET_BRANCH:
     value: "latest"
     options:
@@ -34,13 +33,10 @@ variables:
   tags:
     - oracle
   image: docker:latest
-  # services: block removed - we now use the host's Docker engine via socket
   before_script:
     - apk add --no-cache curl jq
     - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
-    # Ensures binfmt is ready on the host for multi-arch
     - docker run --privileged --rm tonistiigi/binfmt --install all
-    # Reuse the same builder if it exists to save time
     - docker buildx use dns-builder || docker buildx create --use --name dns-builder
 
 build_auto:
@@ -195,4 +191,4 @@ promote_live:
       curl -s -o /dev/null -w "%{http_code}" -X DELETE "https://hub.docker.com/v2/repositories/${IMAGE_NAME}/tags/${SOURCE_TAG}/" -H "Authorization: JWT ${DH_TOKEN}"
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(latest|hardened|latest-wolfi|hardened-wolfi)$/'
-      when: manual
+#      when: manual
