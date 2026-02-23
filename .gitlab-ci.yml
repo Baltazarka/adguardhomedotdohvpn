@@ -33,7 +33,7 @@ variables:
 .docker_setup: &docker_setup
   tags:
     - oracle
-  image: docker:24-cli
+  image: docker:latest
   # services: block removed - we now use the host's Docker engine via socket
   before_script:
     - apk add --no-cache curl jq
