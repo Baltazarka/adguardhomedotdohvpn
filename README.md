@@ -18,7 +18,7 @@ This project provides a custom Docker image for [AdGuard Home](https://github.co
 | `latest` | ![v0.107.72](https://img.shields.io/badge/-v0.107.72-6ABF4B) | ![1.24.2](https://img.shields.io/badge/-1.24.2-0077CC) | ![v0.79.0](https://img.shields.io/badge/-v0.79.0-6ABF4B) |           Alpine Linux | Standard | Standard image running as root. Lightweight and stable. |
 | `latest-wolfi` | ![v0.107.72](https://img.shields.io/badge/-v0.107.72-6ABF4B) | ![1.24.2](https://img.shields.io/badge/-1.24.2-0077CC) | ![v0.79.0](https://img.shields.io/badge/-v0.79.0-6ABF4B) |        Wolfi OS | Enhanced | Built with [Wolfi](https://github.com/wolfi-dev) for fewer vulnerabilities. |
 | `hardened` | ![v0.108.0-a.1244+82f2ac68](https://img.shields.io/badge/-v0.108.0--a.1244+82f2ac68-6ABF4B) | ![1.24.2](https://img.shields.io/badge/-1.24.2-0077CC) | ![v0.79.0-dirty](https://img.shields.io/badge/-v0.79.0--dirty-6ABF4B) |        Alpine Linux | **High** | **Non-Root execution**. Runs as `adguard` user with `libcap` capabilities. |
-| `hardened-wolfi` | ![v0.108.0-a.1244+82f2ac68](https://img.shields.io/badge/-v0.108.0--a.1244+82f2ac68-6ABF4B) | ![1.24.2](https://img.shields.io/badge/-1.24.2-0077CC) | ![v0.79.0-dirty](https://img.shields.io/badge/-v0.79.0--dirty-6ABF4B) |       Wolfi OS | **Maximum** | Wolfi base + Non-Root execution for maximum security hardening. |
+| `hardened-wolfi` | ![v0.108.0-a.1245+4c1dcfee](https://img.shields.io/badge/-v0.108.0--a.1245+4c1dcfee-6ABF4B) | ![1.24.2](https://img.shields.io/badge/-1.24.2-0077CC) | ![v0.79.0-dirty](https://img.shields.io/badge/-v0.79.0--dirty-6ABF4B) |        Wolfi OS | **Maximum** | Wolfi base + Non-Root execution for maximum security hardening. |
 <!-- VERSIONS_TABLE_END -->
 
 ---
