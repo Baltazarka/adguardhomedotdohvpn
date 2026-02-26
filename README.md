@@ -2,12 +2,14 @@
 
 ### ℹ️ Since [cloudflared](https://developers.cloudflare.com/changelog/2025-11-11-cloudflared-proxy-dns/) `proxy-dns`  command is deprecated, Stubby & cloudflared are now replaced with dnsproxy ℹ️
 
+![Tech Logo](https://raw.githubusercontent.com/andrianey/adguardhomedotdoh/refs/heads/latest/tech-logo.png)
+
 This project provides a custom Docker image for [AdGuard Home](https://github.com/AdguardTeam/AdGuardHome) pre-configured with **Unbound** (as a recursive DNS resolver) with Valkey in-memory cache (Redis replacement), and **dnsproxy** (for unified DoH/DoT upstream handling).
 
 [GitHub](https://github.com/andrianey/adguardhomedotdoh) · [Docker Hub](https://hub.docker.com/r/andrianey/adguardhomedotdoh)
 
 ![Check My DNS](https://raw.githubusercontent.com/andrianey/adguardhomedotdoh/refs/heads/latest/cmdns.jpg)
-![Cloudflare-Test](https://raw.githubusercontent.com/andrianey/adguardhomedotdoh/7141b52e7e17ed0264a5a639a610ecd97dccc54e/cloudflare-dns.jpg)
+![Cloudflare-Test](https://raw.githubusercontent.com/andrianey/adguardhomedotdoh/refs/heads/latest/cloudflare-dns.jpg)
 
 ---
 
