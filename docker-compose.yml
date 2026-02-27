@@ -44,7 +44,11 @@ services:
     environment:
       - TZ=Europe/Budapest
       - WG_HOST=sample.sample.com
-      - PASSWORD_HASH=xxxpass
+      # https://bcrypt.online/
+      # sample_password_1234
+      # Cost Factor: 10
+      # $2y$10$xq2w1qdALzKux94f6jyo0OYUDBVXvzaFKmzKOKuZJJ7RXmkvH6Msi
+      - PASSWORD_HASH=sample_password_1234
       # A VPN kliensek az AdGuard Home-ot használják DNS-ként
       - WG_DEFAULT_DNS=10.8.1.2
       - WG_DEFAULT_ADDRESS=10.0.0.x
