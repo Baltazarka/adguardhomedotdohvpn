@@ -1,23 +1,19 @@
 services:
   adguardhome:
     # Choose your preferred tag: 'latest', 'latest-wolfi', 'hardened', or 'hardened-wolfi'
-    image: andrianey/adguardhomedotdoh:latest
+    image: andrianey/adguardhomedotdoh:hardened-wolfi
     container_name: adguardhome
     hostname: adguardhome
     restart: unless-stopped
-
     networks:
       adguard_net:
-        ipv4_address: 172.172.0.2
-
+        ipv4_address: 10.8.1.2
     environment:
-      - TZ=Asia/Jakarta # Set your timezone
-      - PUID=1000 # User ID for file ownership
-      - PGID=1000 # Group ID for file ownership
-      # Optional: Custom DNS Proxy Settings
-      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query https://1.0.0.1/dns-query # Custom Upstreams
-      # - DNSPROXY_FLAGS=--upstream-mode=parallel --cache --cache-optimistic --cache-size=4194304 --cache-min-ttl=600 # Custom Flags
-
+      - TZ=Europe/Budapest
+      - PUID=1000
+      - PGID=1000
+      # - DNSPROXY_UPSTREAM=tls://1.1.1.1 tls://1.0.0.1 https://1.1.1.1/dns-query https://1.0.0.1/dns-query tls://[2606:4700:4700::1111] tls://[2606:4700:4700::1001] https://[2606:4700:4700::1111]/dns-query https://[2606:4700:4700::1001]/dns-query tls://9.9.9.9 tls://149.112.112.112 tls://[2620:fe::fe] tls://[2620:fe::9] https://dns9.quad9.net/dns-query
+      # - DNSPROXY_FLAGS=--upstream-mode=parallel --cache --cache-optimistic --cache-size=4194304 --cache-min-ttl=600
     ports:
       # DNS
       - "53:53/tcp"
@@ -25,27 +21,58 @@ services:
       - "853:853/tcp"
       - "853:853/udp"
       # Web & DoH
-      - "80:80/tcp"
+      - "8082:80/tcp"
       - "443:443/tcp"
       - "443:443/udp"
       - "3000:3000/tcp"
       # DHCP
       - "67:67/udp"
       - "68:68/udp"
-
     volumes:
-      # Core AdGuard Home Data for persistent configuration
-      - /opt/adguardhome/conf:/opt/adguardhome/conf
-      - /opt/adguardhome/work:/opt/adguardhome/work
-      # Mount custom SSL certificates to resolve over public address https://localhost/dns-query
-      # - /opt/adguardhome/certs:/opt/certs
+      - /conf:/opt/adguardhome/conf
+      - /work:/opt/adguardhome/work
 
-      # Optional: Custom Config Overrides
-      # - /opt/adguardhome/unbound/unbound.conf:/etc/unbound/unbound.conf
+  wg-easy:
+    depends_on: [adguardhome]
+    image: ghcr.io/wg-easy/wg-easy:latest
+    container_name: wg-easy
+    hostname: wg-easy
+    restart: unless-stopped
+    networks:
+      adguard_net:
+        ipv4_address: 10.8.1.3
+    environment:
+      - TZ=Europe/Budapest
+      - WG_HOST=sample.sample.com
+      - PASSWORD_HASH=xxxpass
+      # A VPN kliensek az AdGuard Home-ot használják DNS-ként
+      - WG_DEFAULT_DNS=10.8.1.2
+      - WG_DEFAULT_ADDRESS=10.0.0.x
+      - WG_ALLOWED_IPS=0.0.0.0/0, ::/0
+      - WG_PERSISTENT_KEEPALIVE=25
+      - PORT=51821
+      - DISABLE_IPV6=false           # vagy true, ha nem kell IPv6
+      - WG_MTU=1420
+
+    ports:
+      - "51820:51820/udp"   # WireGuard tunnel
+      - "8083:51821/tcp"   # Web UI
+    volumes:
+      - /home/dietpi/docker/wireguard_easy3:/etc/wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.conf.all.forwarding=1
 
 networks:
   adguard_net:
-    driver: bridge
     ipam:
+      driver: default
       config:
-        - subnet: 172.172.0.0/24
+        - subnet: 10.8.1.0/24
+
+
+
