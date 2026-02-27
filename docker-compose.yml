@@ -58,7 +58,7 @@ services:
       - "51820:51820/udp"   # WireGuard tunnel
       - "8083:51821/tcp"   # Web UI
     volumes:
-      - /home/dietpi/docker/wireguard_easy3:/etc/wireguard
+      - /wireguard_easy:/etc/wireguard
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
