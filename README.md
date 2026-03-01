@@ -85,6 +85,46 @@ services:
       # Optional: Custom Config Overrides
       # - /opt/adguardhome/unbound/unbound.conf:/etc/unbound/unbound.conf
 
+
+  wg-easy:
+    depends_on: [adguardhome]
+    image: ghcr.io/wg-easy/wg-easy:latest
+    container_name: wg-easy
+    hostname: wg-easy
+    restart: unless-stopped
+    networks:
+      adguard_net:
+        ipv4_address: 10.8.1.3
+    environment:
+      - TZ=Europe/Budapest
+      - WG_HOST=sample.sample.com
+      # https://bcrypt.online/
+      # sample_password_1234
+      # Cost Factor: 10
+      # $2y$10$xq2w1qdALzKux94f6jyo0OYUDBVXvzaFKmzKOKuZJJ7RXmkvH6Msi
+      - PASSWORD_HASH=sample_password_1234
+      # A VPN kliensek az AdGuard Home-ot használják DNS-ként
+      - WG_DEFAULT_DNS=10.8.1.2
+      - WG_DEFAULT_ADDRESS=10.0.0.x
+      - WG_ALLOWED_IPS=0.0.0.0/0, ::/0
+      - WG_PERSISTENT_KEEPALIVE=25
+      - PORT=51821
+      - DISABLE_IPV6=false           # vagy true, ha nem kell IPv6
+      - WG_MTU=1420
+
+    ports:
+      - "51820:51820/udp"   # WireGuard tunnel
+      - "8083:51821/tcp"   # Web UI
+    volumes:
+      - /wireguard_easy:/etc/wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.conf.all.forwarding=1
+
 networks:
   adguard_net:
     driver: bridge
